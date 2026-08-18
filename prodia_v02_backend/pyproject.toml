@@ -1,0 +1,84 @@
+[project]
+name = "prodia-v02-backend"
+version = "0.1.0"
+description = "ProdIA V02 — backend FastAPI, reconstruido sobre las convenciones de Robustez V02"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "structlog>=24.1",
+    "pydantic-settings>=2.7",
+    "ldap3>=2.9",
+    "dnspython>=2.7",
+    "itsdangerous>=2.2",
+    "psycopg2-binary>=2.9.12",
+    "openpyxl>=3.1",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "black",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+    "pytest-asyncio",
+    "httpx",
+    "pre-commit",
+    "types-requests",
+    "sqlalchemy[mypy]>=2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["I", "F", "N", "W"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**" = ["N802", "N803"]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+extend-exclude = "alembic/versions"
+
+[tool.mypy]
+strict = true
+files = ["src"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["ldap3.*", "dns.*", "itsdangerous.*", "pydantic_settings.*", "openpyxl.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "unit: tests unitarios, sin I/O real",
+    "integration: tests de integración vía HTTP/BD en memoria",
+]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+branch = true
+omit = ["src/main.py"]
+
+[tool.coverage.report]
+fail_under = 75

@@ -1,0 +1,37 @@
+# ── Python (backend) ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Node (frontend) ───────────────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+coverage/
+
+# ── Datos y secretos — NUNCA versionar ────────────────────────────────────────
+.env
+.env.local
+prodia_v02_backend/data/*.db
+prodia_v02_backend/data/*.db-wal
+prodia_v02_backend/data/*.db-shm
+prodia_v02_backend/openapi.json
+
+# ── Artefactos de deploy (patrón Robustez V02) ────────────────────────────────
+/migra_*.zip
+/ops_*.sql
+/ops_*.dump
+/ops_*.zip
+
+# ── Editor / OS ────────────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db

@@ -1,0 +1,69 @@
+@use '../../shared/styles/tokens' as *;
+
+.layoutMain {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: $pv-bg;
+}
+
+// Franja blanca: sin marca ni lanzador, el avatar es el único control. El
+// borde inferior es obligatorio — sin él la franja se funde con el fondo,
+// que el header verde del original no necesitaba.
+.header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 $pv-space-4;
+  background: $pv-white;
+  border-bottom: 1px solid $pv-border;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+}
+
+.avatarBtn {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: $pv-primary;
+  color: $pv-white;
+  font-family: $pv-font-sans;
+  font-size: 13px;
+  font-weight: 800;
+  border: 2px solid $pv-lime;
+
+  &:focus-visible {
+    outline: 2px solid $pv-primary;
+    outline-offset: 2px;
+  }
+}
+
+.mainContent {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: $pv-space-4;
+  gap: $pv-space-3;
+}
+
+.footer {
+  height: var(--footer-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: $pv-font-mono;
+  font-size: 0.66rem;
+  color: $pv-muted;
+  background: $pv-white;
+  border-top: 1px solid $pv-border;
+  flex-shrink: 0;
+}

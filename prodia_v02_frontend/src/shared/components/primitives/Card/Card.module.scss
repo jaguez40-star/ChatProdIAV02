@@ -1,0 +1,35 @@
+@use '../../../styles/tokens' as *;
+
+.card {
+  background-color: $pv-white;
+  border-radius: $pv-radius-md;
+  border: 1px solid $pv-border;
+}
+
+.none {
+  padding: 0;
+}
+
+.sm {
+  padding: $pv-space-2;
+}
+
+.md {
+  padding: $pv-space-4;
+}
+
+.lg {
+  padding: $pv-space-6;
+}
+
+.base {
+  box-shadow: $pv-shadow-card;
+}
+
+.raised {
+  box-shadow: 0 4px 16px rgb(0 0 0 / 10%);
+}
+
+.modal {
+  box-shadow: $pv-shadow-panel;
+}

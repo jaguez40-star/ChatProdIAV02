@@ -1,0 +1,45 @@
+@use '../../../styles/tokens' as *;
+
+.spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.circle {
+  display: block;
+  border: 2px solid rgb(0 66 54 / 15%);
+  border-top-color: $pv-primary;
+  border-radius: 50%;
+  animation: pv-spin 0.7s linear infinite;
+}
+
+.sm .circle {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.md .circle {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+}
+
+.lg .circle {
+  width: 44px;
+  height: 44px;
+  border-width: 4px;
+}
+
+@keyframes pv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .circle {
+    animation: none;
+  }
+}

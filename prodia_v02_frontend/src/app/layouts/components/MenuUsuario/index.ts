@@ -1,0 +1,1 @@
+export { MenuUsuario } from './MenuUsuario';

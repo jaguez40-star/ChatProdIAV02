@@ -1,0 +1,195 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.panel {
+  min-width: 0;
+  min-height: 0;
+  background: $pv-white;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition:
+    flex 0.32s cubic-bezier(0.7, 0, 0.2, 1),
+    box-shadow 0.2s,
+    border-color 0.2s;
+}
+
+.abierto {
+  flex: 1 1 0;
+  border: 1px solid $pv-lime-soft;
+  box-shadow: 0 10px 28px rgb(20 50 35 / 10%);
+}
+
+.colapsado {
+  flex: 0 0 clamp(58px, 7vw, 80px);
+  border: 1px solid $pv-border;
+  box-shadow: 0 1px 2px rgb(20 40 30 / 4%);
+}
+
+// ── Panel abierto ───────────────────────────────────────────────────────────
+.cabecera {
+  all: unset;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  background: $pv-primary;
+  padding: 13px $pv-space-4;
+  display: flex;
+  align-items: center;
+  gap: $pv-space-3;
+
+  &:focus-visible {
+    outline: 2px solid $pv-lime;
+    outline-offset: -2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+  }
+}
+
+.num {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 14%);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  font-family: $pv-font-mono;
+  font-size: 14px;
+  font-weight: 700;
+  color: $pv-white;
+}
+
+.titulos {
+  min-width: 0;
+  flex: 1;
+}
+
+.titulo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: $pv-font-sans;
+  font-size: 15px;
+  font-weight: 800;
+  color: $pv-white;
+  white-space: nowrap;
+}
+
+.tituloIcono {
+  color: $pv-lime;
+  flex-shrink: 0;
+}
+
+.subtitulo {
+  display: block;
+  font-family: $pv-font-sans;
+  font-size: 11.5px;
+  color: rgb(255 255 255 / 72%);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.colapsar {
+  width: 30px;
+  height: 30px;
+  border-radius: $pv-radius-sm;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 25%);
+  background: rgb(255 255 255 / 8%);
+  color: $pv-white;
+}
+
+.cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: $pv-space-4;
+}
+
+// ── Panel colapsado (tira vertical) ─────────────────────────────────────────
+.tira {
+  all: unset;
+  box-sizing: border-box;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $pv-space-4 0;
+  gap: 14px;
+
+  &:focus-visible {
+    outline: 2px solid $pv-primary;
+    outline-offset: -2px;
+  }
+}
+
+.tiraIcono {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: $pv-lime-soft;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: $pv-primary;
+}
+
+.tiraTitulo {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: $pv-font-sans;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: $pv-navy;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 0;
+}
+
+// Mismo umbral que useIsMobile(): el acordeón pasa a columna, así que la tira
+// vertical no cabe — vuelve a ser una barra horizontal de alto fijo.
+@media (width <= 1023px) {
+  .colapsado {
+    flex: 0 0 56px;
+  }
+
+  .tira {
+    flex-direction: row;
+    padding: 0 $pv-space-4;
+    gap: $pv-space-3;
+    justify-content: flex-start;
+  }
+
+  .tiraIcono {
+    width: 32px;
+    height: 32px;
+  }
+
+  .tiraTitulo {
+    writing-mode: horizontal-tb;
+    transform: none;
+    flex: 1;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    transition: none;
+  }
+}

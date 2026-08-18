@@ -1,0 +1,47 @@
+@use '../../styles/tokens' as *;
+
+.container {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $pv-space-6;
+}
+
+.card {
+  background: $pv-white;
+  border-radius: $pv-radius-md;
+  box-shadow: $pv-shadow-card;
+  padding: $pv-space-6;
+  max-width: 420px;
+  text-align: center;
+}
+
+.icon {
+  font-size: 2rem;
+}
+
+.title {
+  margin: $pv-space-3 0;
+  font-size: 1.25rem;
+  color: #111827;
+}
+
+.message {
+  color: #6b7280;
+  margin-bottom: $pv-space-4;
+}
+
+.btn {
+  background-color: $pv-primary;
+  color: $pv-white;
+  border: none;
+  border-radius: $pv-radius-sm;
+  padding: 0.625rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #005a49;
+  }
+}

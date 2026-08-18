@@ -1,0 +1,13 @@
+.acordeon {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 14px;
+}
+
+// Mismo umbral que useIsMobile(): en pantallas angostas los paneles se apilan.
+@media (width <= 1023px) {
+  .acordeon {
+    flex-direction: column;
+  }
+}

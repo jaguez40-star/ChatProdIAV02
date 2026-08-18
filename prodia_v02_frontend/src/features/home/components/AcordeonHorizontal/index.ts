@@ -1,0 +1,1 @@
+export { AcordeonHorizontal } from './AcordeonHorizontal';

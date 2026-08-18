@@ -1,0 +1,154 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.menu {
+  position: absolute;
+  top: calc(var(--header-h) - 4px);
+  right: $pv-space-3;
+  width: 292px;
+  background: $pv-white;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+  box-shadow: $pv-shadow-panel;
+  padding: 14px;
+  z-index: 30;
+}
+
+.usuario {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: $pv-primary;
+  color: $pv-white;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.datos {
+  min-width: 0;
+}
+
+.filaNombre {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.nombre {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: $pv-navy;
+}
+
+.insignia {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  background: $pv-primary;
+  color: $pv-lime;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.email {
+  font-size: 11px;
+  color: $pv-muted;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.separador {
+  height: 1px;
+  background: $pv-border;
+  margin: $pv-space-3 0;
+}
+
+.accesos {
+  display: grid;
+  gap: 7px;
+}
+
+.acceso {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+  padding: 11px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+
+  &:hover {
+    border-color: $pv-primary;
+    background: $pv-lime-soft;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $pv-primary;
+    outline-offset: 1px;
+  }
+}
+
+.accesoEtiqueta {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: $pv-navy;
+}
+
+.item {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: $pv-space-2 9px;
+  border-radius: $pv-radius-sm;
+  font-size: 12px;
+  font-weight: 600;
+  color: $pv-navy;
+  width: 100%;
+
+  svg {
+    color: $pv-primary;
+    flex: 0 0 auto;
+  }
+
+  &:hover:not(:disabled) {
+    background: $pv-lime-soft;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $pv-primary;
+    outline-offset: -2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.salir {
+  color: $pv-neg;
+
+  svg {
+    color: $pv-neg;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgb(226 75 74 / 8%);
+  }
+}

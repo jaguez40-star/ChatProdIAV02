@@ -1,0 +1,39 @@
+# Patrón de Robustez V02, adaptado. `make` no está garantizado en esta máquina
+# (P-4) — todos los hooks llaman `uv run` / `pnpm exec` directamente, nunca `make`.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-backend
+        name: ruff (backend)
+        entry: bash -c 'cd prodia_v02_backend && uv run ruff check .'
+        language: system
+        pass_filenames: false
+        files: ^prodia_v02_backend/
+
+      - id: black-backend
+        name: black --check (backend)
+        entry: bash -c 'cd prodia_v02_backend && uv run black --check .'
+        language: system
+        pass_filenames: false
+        files: ^prodia_v02_backend/
+
+      - id: mypy-backend
+        name: mypy --strict (backend)
+        entry: bash -c 'cd prodia_v02_backend && uv run mypy src'
+        language: system
+        pass_filenames: false
+        files: ^prodia_v02_backend/
+
+      - id: eslint-frontend
+        name: eslint (frontend)
+        entry: bash -c 'pnpm --filter prodia-v02-frontend lint'
+        language: system
+        pass_filenames: false
+        files: ^prodia_v02_frontend/
+
+      - id: gen-types-check
+        name: gen:types al día (N3 — offline, sin backend vivo, H5)
+        entry: bash -c 'pnpm run gen:types && git diff --exit-code prodia_v02_frontend/src/shared/types/api.d.ts'
+        language: system
+        pass_filenames: false
+        files: ^prodia_v02_backend/src/(main|features)/.*\.py$

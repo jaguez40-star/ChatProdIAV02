@@ -1,0 +1,23 @@
+@use '../../styles/tokens' as *;
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background-color: #fef3c7;
+  color: #92400e;
+  border-radius: $pv-radius-sm;
+  font-size: 0.875rem;
+  margin-bottom: $pv-space-3;
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.text {
+  strong {
+    font-weight: 700;
+  }
+}

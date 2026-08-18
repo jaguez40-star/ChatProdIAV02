@@ -1,0 +1,45 @@
+// ── Tokens de diseño — ProdIA V02 ────────────────────────────────────────────
+// Patrón heredado de Robustez V02 (2 capas: variables Sass aquí para lo que
+// se resuelve en build, custom properties CSS en index.scss para lo que
+// cambia en runtime), CORREGIDO (C11): un solo prefijo ($pv-*, no dos como
+// $rb-*/$ec-* con aliases cruzados) y CON escala de espaciado — Robustez V02
+// no la tenía tokenizada pese a que su CLAUDE.md la documentaba en prosa.
+
+// Paleta corporativa Ecopetrol
+$pv-primary: #004236;
+$pv-lime: #ccd32a;
+$pv-navy: #00214d;
+$pv-bright: #6cd300;
+
+// Fondos y bordes
+$pv-bg: #f5f5ee;
+$pv-border: #ddddd5;
+$pv-lime-soft: #f8f9e6;
+$pv-panel: #fafaf6;
+$pv-white: #fff;
+
+// Semánticos
+$pv-pos: #2a7a50;
+$pv-neg: #e24b4a;
+$pv-muted: #6b6f63;
+
+// Sombras
+$pv-shadow-card: 0 1px 3px rgb(0 0 0 / 6%);
+$pv-shadow-panel: 0 8px 32px rgb(0 0 0 / 18%);
+
+// Tipografía
+$pv-font-sans:
+  'Inter', -apple-system, 'Segoe UI', system-ui, arial, sans-serif;
+$pv-font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', menlo, consolas, monospace;
+
+// Escala de espaciado (C11 — faltaba en la plantilla, solo vivía en prosa)
+$pv-space-1: 4px;
+$pv-space-2: 8px;
+$pv-space-3: 12px;
+$pv-space-4: 16px;
+$pv-space-6: 24px;
+
+// Radios y transición
+$pv-radius-sm: 6px;
+$pv-radius-md: 10px;
+$pv-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);

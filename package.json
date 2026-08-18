@@ -1,0 +1,25 @@
+{
+  "name": "prodia-v02",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "setup": "uv python install 3.12 --directory prodia_v02_backend && cd prodia_v02_backend && uv sync --extra dev && cd .. && pnpm install",
+    "dev": "concurrently --names back,front --prefix-colors blue,green --kill-others-on-fail \"pnpm run dev:back\" \"pnpm run dev:front\"",
+    "dev:back": "cd prodia_v02_backend && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 6034",
+    "dev:front": "pnpm --filter prodia-v02-frontend dev",
+    "lint": "concurrently --names back,front --prefix-colors blue,green \"pnpm run lint:back\" \"pnpm run lint:front\"",
+    "lint:back": "cd prodia_v02_backend && uv run ruff check . && uv run black --check .",
+    "lint:front": "pnpm --filter prodia-v02-frontend lint",
+    "typecheck": "concurrently --names back,front --prefix-colors blue,green \"pnpm run typecheck:back\" \"pnpm run typecheck:front\"",
+    "typecheck:back": "cd prodia_v02_backend && uv run mypy src",
+    "typecheck:front": "pnpm --filter prodia-v02-frontend typecheck",
+    "test": "concurrently --names back,front --prefix-colors blue,green \"pnpm run test:back\" \"pnpm run test:front\"",
+    "test:back": "cd prodia_v02_backend && uv run pytest",
+    "test:front": "pnpm --filter prodia-v02-frontend test",
+    "gen:types": "cd prodia_v02_backend && uv run python scripts/export_openapi.py && cd ../prodia_v02_frontend && pnpm exec openapi-typescript ../prodia_v02_backend/openapi.json -o src/shared/types/api.d.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

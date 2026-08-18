@@ -1,0 +1,51 @@
+@use './tokens' as *;
+
+// Custom properties CSS — lo que cambia en runtime (layout, marca), a
+// diferencia de _tokens.scss (variables Sass, resueltas en build).
+:root {
+  // 48px = avatar de 32px con 8px de holgura arriba y abajo.
+  --header-h: 48px;
+  --footer-h: 30px;
+
+  --color-primary: #{$pv-primary};
+  --color-bright: #{$pv-bright};
+  --color-lime: #{$pv-lime};
+
+  --transition-base: #{$pv-transition-base};
+  --shadow-card: #{$pv-shadow-card};
+  --shadow-panel: #{$pv-shadow-panel};
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: $pv-font-sans;
+  background: $pv-bg;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,266 @@
+@use '../../../shared/styles/tokens' as *;
+
+.loginPage {
+  min-height: 100vh;
+  min-width: 100vw;
+  background: $pv-panel;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 460px;
+  min-height: 100vh;
+
+  @media (width < 1024px) {
+    grid-template-columns: 1fr 400px;
+  }
+
+  @media (width < 768px) {
+    grid-template-columns: 1fr;
+
+    > :first-child {
+      display: none;
+    }
+  }
+}
+
+// Panel izquierdo — área de marca ESTÁTICA (D1: sin DashboardPreview, que en
+// Robustez V02 son ~500 líneas + 2 hooks de KPIs de mercado que ProdIA no
+// tiene). Sin fetch de datos: es contenido puramente decorativo.
+.brandPanel {
+  background: linear-gradient(135deg, $pv-primary 0%, #00302a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.brandContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  max-width: 380px;
+}
+
+.brandIcon {
+  color: $pv-lime;
+  display: flex;
+}
+
+.brandTitle {
+  font:
+    700 32px/1.2 $pv-font-sans;
+  color: $pv-white;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.brandTagline {
+  font: 400 15px/1.5 $pv-font-sans;
+  color: rgb(255 255 255 / 80%);
+  margin: 0;
+}
+
+// Panel derecho — formulario
+.formPanel {
+  background: $pv-white;
+  border-left: 1px solid $pv-border;
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+
+  @media (width < 768px) {
+    border-left: none;
+    padding: 32px 20px;
+  }
+}
+
+.formContent {
+  display: flex;
+  flex-direction: column;
+  gap: 33px;
+  margin: auto 0;
+}
+
+.logoHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logoIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: $pv-radius-md;
+  background: $pv-primary;
+  color: $pv-lime;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logoName {
+  font: 700 28px/1 $pv-font-sans;
+  color: #111827;
+  letter-spacing: 1px;
+}
+
+.logoSub {
+  font: 500 13px/1 $pv-font-sans;
+  color: $pv-muted;
+  letter-spacing: 0.5px;
+}
+
+.logoText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.formHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formTitle {
+  font: 700 24px/1.2 $pv-font-sans;
+  color: #111827;
+  margin: 0;
+
+  @media (width < 768px) {
+    font-size: 20px;
+  }
+}
+
+.formSubtitle {
+  font: 400 13px/1.4 $pv-font-sans;
+  color: $pv-muted;
+  margin: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 27px;
+}
+
+.passwordWrapper {
+  position: relative;
+
+  > input,
+  > div {
+    width: 100%;
+  }
+}
+
+.eyeToggle {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: $pv-muted;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color $pv-transition-base;
+
+  &:hover {
+    color: #374151;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $pv-primary;
+    outline-offset: 2px;
+  }
+}
+
+.rememberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: 400 13px/1 $pv-font-sans;
+  color: #374151;
+}
+
+.rememberLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+
+  input[type='checkbox'] {
+    accent-color: $pv-primary;
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.forgotLink {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: 500 13px/1 $pv-font-sans;
+  color: $pv-primary;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover {
+    color: #005a49;
+  }
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: 400 12px/1.4 $pv-font-sans;
+  color: #374151;
+}
+
+.adminLink {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: 500 12px/1.4 $pv-font-sans;
+  color: $pv-primary;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover {
+    color: #005a49;
+  }
+}
+
+.formFooter {
+  display: flex;
+  justify-content: space-between;
+  font: 400 11px/1 $pv-font-mono;
+  color: $pv-muted;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.toastContainer {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 10001;
+
+  @media (width < 768px) {
+    right: 12px;
+    left: 12px;
+  }
+}

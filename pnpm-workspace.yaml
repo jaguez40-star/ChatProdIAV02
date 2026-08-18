@@ -1,0 +1,8 @@
+# pnpm workspaces — solo paquetes Node (backend usa uv).
+# El backend (Python) se gestiona con `uv sync` desde prodia_v02_backend/.
+packages:
+  - 'prodia_v02_frontend'
+allowBuilds:
+  '@parcel/watcher': true
+  es5-ext: true
+  esbuild: true

@@ -1,0 +1,90 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgb(0 0 0 / 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+
+.dialog {
+  background-color: $pv-white;
+  border-radius: 16px;
+  box-shadow: $pv-shadow-panel;
+  width: min(420px, 90vw);
+  padding: 2rem 1.75rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.iconChip {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #f7db17;
+  color: #1a1a2e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.text {
+  margin: 0 0 1.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.acceptBtn {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: #f7db17;
+  border: none;
+  border-radius: 999px;
+  color: #1a1a2e;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color $pv-transition-base;
+
+  &:hover {
+    background: #e0c614;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $pv-primary;
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dialog {
+    animation: pop-in 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
