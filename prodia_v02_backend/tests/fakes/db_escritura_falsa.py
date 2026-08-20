@@ -44,13 +44,24 @@ class BorradoSinAcotarError(AssertionError):
 
 
 class Escritura:
-    """Una sentencia de escritura registrada, con sus parámetros."""
+    """Una sentencia de escritura registrada, con sus parámetros.
+
+    Los parámetros se **copian**, no se referencian. Los loaders reutilizan un mismo
+    buffer —lo vuelcan y lo vacían con `.clear()` para no reservar memoria por cada
+    lote—, así que guardar la referencia dejaba aquí una lista vacía y el doble
+    informaba de cero filas escritas cuando en realidad se habían escrito todas.
+    """
 
     def __init__(self, verbo: str, tabla: str, sql: str, parametros: Any) -> None:
         self.verbo = verbo
         self.tabla = tabla
         self.sql = sql
-        self.parametros = parametros
+        if isinstance(parametros, list):
+            self.parametros: Any = [dict(fila) for fila in parametros]
+        elif isinstance(parametros, dict):
+            self.parametros = dict(parametros)
+        else:
+            self.parametros = parametros
 
     @property
     def filas(self) -> int:

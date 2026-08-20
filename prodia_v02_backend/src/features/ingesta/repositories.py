@@ -416,6 +416,134 @@ class IngestaRepository:
             )
         return deduplicadas
 
+    # ── Facts de ECP (solo archivos NEW) ────────────────────────────────────
+
+    def insertar_produccion_dia(self, filas: list[dict[str, Any]]) -> None:
+        """`fact_produccion_dia_ecp` — upsert por la clave natural `uk_dia`.
+
+        Solo se actualizan las medidas y el `reporte_id`: las columnas de dimensión
+        forman parte de la clave, así que no cambian.
+        """
+        if not filas:
+            return
+        sentencia = text("""
+      INSERT INTO core.fact_produccion_dia_ecp
+        (fecha, fuente_id, vice_id, socio_id, concepto_id, tipo_producto_id, producto,
+         grupo_prod, propietario, volumen, porcentaje, voldismez, vol_estimado, promedio, reporte_id)
+      VALUES (:fecha, :fuente_id, :vice_id, :socio_id, :concepto_id, :tipo_producto_id,
+              :producto, :grupo_prod, :propietario, :volumen, :porcentaje, :voldismez,
+              :vol_estimado, :promedio, :rep)
+      ON CONFLICT ON CONSTRAINT uk_dia DO UPDATE SET
+        volumen=EXCLUDED.volumen, porcentaje=EXCLUDED.porcentaje,
+        voldismez=EXCLUDED.voldismez, vol_estimado=EXCLUDED.vol_estimado,
+        promedio=EXCLUDED.promedio, reporte_id=EXCLUDED.reporte_id""")
+        self._db.execute(sentencia, filas)
+
+    def insertar_produccion_mes(self, filas: list[dict[str, Any]]) -> None:
+        """`fact_produccion_mes_ecp` — upsert por `uk_mes`, con las diez medidas."""
+        if not filas:
+            return
+        sentencia = text(
+            """
+      INSERT INTO core.fact_produccion_mes_ecp
+        (fecha, fuente_id, vice_id, socio_id, concepto_id, tipo_producto_id, producto,
+         escenario_id, proceso_id, grupo_prod, negocio, volumen, porcentaje, voldismez,
+         bpd_m, bpda_ac, bpd_a, bpdeq_m, blseq, bpdeq_a, reporte_id)
+      VALUES (:fecha, :fuente_id, :vice_id, :socio_id, :concepto_id, :tipo_producto_id,
+              :producto, :escenario_id, :proceso_id, :grupo_prod, :negocio, :volumen,
+              :porcentaje, :voldismez, :bpd_m, :bpda_ac, :bpd_a, :bpdeq_m, :blseq,
+              :bpdeq_a, :rep)
+      ON CONFLICT ON CONSTRAINT uk_mes DO UPDATE SET
+        volumen=EXCLUDED.volumen, porcentaje=EXCLUDED.porcentaje,
+        voldismez=EXCLUDED.voldismez, bpd_m=EXCLUDED.bpd_m, bpda_ac=EXCLUDED.bpda_ac,
+        bpd_a=EXCLUDED.bpd_a, bpdeq_m=EXCLUDED.bpdeq_m, blseq=EXCLUDED.blseq,
+        bpdeq_a=EXCLUDED.bpdeq_a, negocio=EXCLUDED.negocio, reporte_id=EXCLUDED.reporte_id"""
+        )
+        self._db.execute(sentencia, filas)
+
+    def insertar_programa(self, filas: list[dict[str, Any]]) -> None:
+        """`fact_programa_ecp` — upsert por `uk_prog`.
+
+        Esa constraint es `UNIQUE NULLS NOT DISTINCT`: trata dos NULL como iguales, que
+        es lo que hace que el upsert funcione en filas sin `fuente_id`.
+        """
+        if not filas:
+            return
+        sentencia = text("""
+      INSERT INTO core.fact_programa_ecp
+        (fecha, vice_id, tipo_producto_id, fuente_id, area, campo, version,
+         fecha_version, volumen, produccion_total, part_ecp, reporte_id)
+      VALUES (:fecha, :vice_id, :tipo_producto_id, :fuente_id, :area, :campo, :version,
+              :fecha_version, :volumen, :produccion_total, :part_ecp, :rep)
+      ON CONFLICT ON CONSTRAINT uk_prog DO UPDATE SET
+        volumen=EXCLUDED.volumen, produccion_total=EXCLUDED.produccion_total,
+        part_ecp=EXCLUDED.part_ecp, fecha_version=EXCLUDED.fecha_version,
+        reporte_id=EXCLUDED.reporte_id""")
+        self._db.execute(sentencia, filas)
+
+    # ── Filiales, plan y promedios ──────────────────────────────────────────
+
+    def insertar_produccion_filiales(self, filas: list[dict[str, Any]]) -> None:
+        """`fact_produccion_diaria` — upsert por `uk_fil` (empresa, producto, tipo, fecha)."""
+        if not filas:
+            return
+        self._db.execute(
+            text("""
+      INSERT INTO core.fact_produccion_diaria
+        (empresa_id, producto_id, tipo_id, fecha, valor_produccion, reporte_id)
+      VALUES (:e, :p, :t, :f, :v, :r)
+      ON CONFLICT ON CONSTRAINT uk_fil DO UPDATE SET
+        valor_produccion=EXCLUDED.valor_produccion, reporte_id=EXCLUDED.reporte_id"""),
+            filas,
+        )
+
+    def insertar_plan_mensual(self, filas: list[dict[str, Any]]) -> None:
+        """`fact_plan_mensual` — el POP de filiales, en kbd."""
+        if not filas:
+            return
+        self._db.execute(
+            text("""
+      INSERT INTO core.fact_plan_mensual (empresa_id, anio, mes, pop_kbd, segmento, reporte_id)
+      VALUES (:e, :a, :m, :p, 'Filiales', :r)
+      ON CONFLICT ON CONSTRAINT uk_plan DO UPDATE SET
+        pop_kbd=EXCLUDED.pop_kbd, reporte_id=EXCLUDED.reporte_id"""),
+            filas,
+        )
+
+    def insertar_promedios_validados(self, filas: list[dict[str, Any]]) -> None:
+        """`fact_promedio_validado` — el promedio YTD por empresa y producto."""
+        if not filas:
+            return
+        self._db.execute(
+            text(
+                """
+      INSERT INTO core.fact_promedio_validado
+        (empresa_id, producto_id, anio, mes, promedio_validado, reporte_id)
+      VALUES (:e, :p, :a, :m, :v, :r)
+      ON CONFLICT ON CONSTRAINT uk_prom DO UPDATE SET
+        promedio_validado=EXCLUDED.promedio_validado, reporte_id=EXCLUDED.reporte_id"""
+            ),
+            filas,
+        )
+
+    def completar_calendario_del_reporte(
+        self, reporte_id: int, valores: dict[str, Any]
+    ) -> None:
+        """Completa los campos de calendario de `config_reporte` desde la hoja INICIO.
+
+        Es una segunda pasada sobre la fila que ya creó `upsert_reporte`: esos datos
+        (día de corte, versión de semana, días del año) viven en una hoja que se lee
+        más tarde en el flujo.
+        """
+        self._db.execute(
+            text("""
+        UPDATE core.config_reporte SET
+            fecha_corte=:fc, mes_inicio=:mi, mes_fin=:mf,
+            version_semana=:vs, anio_inicio=:ai, dias_anio=:da
+        WHERE reporte_id=:r"""),
+            {**valores, "r": reporte_id},
+        )
+
     # ── Comentarios ─────────────────────────────────────────────────────────
 
     def reemplazar_comentarios(

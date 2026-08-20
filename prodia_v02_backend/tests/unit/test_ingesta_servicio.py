@@ -12,6 +12,7 @@ extracción —eso ya lo cubren los tests de extractores.
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -47,11 +48,25 @@ class LibroFalso:
 
 
 class HojaFalsa:
+    """Doble de una hoja. Acepta los mismos argumentos que `openpyxl`, porque los
+    loaders acotan la lectura con `min_row`/`max_row` cuando solo les interesa la
+    cabecera de la hoja."""
+
     def __init__(self, filas: list[Any]) -> None:
         self._filas = filas
 
-    def iter_rows(self, values_only: bool = True) -> list[Any]:
-        return self._filas
+    def iter_rows(
+        self,
+        min_row: int | None = None,
+        max_row: int | None = None,
+        max_col: int | None = None,
+        values_only: bool = True,
+    ) -> Iterator[Any]:
+        # Devuelve un ITERADOR, no una lista: openpyxl también lo hace, y los loaders
+        # consumen la fila de encabezado con `next()`. Un doble que devolviera una lista
+        # daría verde aquí y fallaría contra el archivo real.
+        desde = (min_row - 1) if min_row else 0
+        return iter(self._filas[desde:max_row])
 
 
 def _servicio(

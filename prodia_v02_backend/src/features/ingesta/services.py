@@ -38,8 +38,20 @@ from openpyxl import load_workbook
 from src.core.logger import get_logger
 from src.features.ingesta.detector import HOJAS_RAW, tiene_raw
 from src.features.ingesta.extractores import extractores_aplicables
+from src.features.ingesta.loaders import (
+    cargar_comentarios,
+    cargar_filiales,
+    cargar_pop,
+    cargar_produccion_dia,
+    cargar_produccion_mes,
+    cargar_programa,
+    cargar_promedios,
+    completar_calendario,
+    presembrar_fuentes_de_programa,
+)
 from src.features.ingesta.repositories import IngestaRepository
 from src.features.ingesta.schemas import (
+    EventoAvance,
     EventoHoja,
     EventoIngesta,
     EventoInicio,
@@ -57,6 +69,15 @@ DESTINOS_BRONZE: list[tuple[str, str, list[str]]] = [
     ("BDP_datos_mes", "bdp_datos_mes", BZ_MES),
     ("BDP_Programa", "bdp_programa", BZ_PRG),
 ]
+
+# Hojas que alimentan el modelo dimensional (además de las tres RAW). Si el libro no
+# trae ninguna, no hace falta ni cargar las caches de dimensión.
+HOJAS_DE_MODELO_DIMENSIONAL = (
+    "COMENTARIOS",
+    "Producción filiales",
+    "POP Filiales y Exploración",
+    "INICIO",
+)
 
 # Un observador recibe cada evento; si no hay, la ingesta corre igual.
 Observador = Callable[[EventoIngesta], None]
@@ -120,6 +141,16 @@ class IngestaService:
         self._aterrizar_resto_de_hojas(
             libro, nombres_de_hoja, reporte_id, filas_por_destino, hojas
         )
+        # Las dimensiones se cargan una sola vez y las comparten todos los loaders.
+        if trae_raw or self._hay_alguna(nombres_de_hoja, HOJAS_DE_MODELO_DIMENSIONAL):
+            dims = self._repo.crear_caches_de_dimension()
+            if trae_raw:
+                self._cargar_facts_ecp(
+                    libro, reporte_id, dims, filas_por_destino, hojas
+                )
+            self._cargar_tablas_de_apoyo(
+                libro, nombres_de_hoja, reporte_id, dims, filas_por_destino, hojas
+            )
         self._volcar_hojas_modeladas(
             libro, nombres_de_hoja, reporte_id, filas_por_destino, hojas, tablas_vacias
         )
@@ -211,6 +242,161 @@ class IngestaService:
                 )
             )
         filas_por_destino["bronze.hoja_landing"] = total_hojas
+
+    # ── Modelo dimensional (facts estrella) ─────────────────────────────────
+
+    @staticmethod
+    def _hay_alguna(nombres_de_hoja: list[str], candidatas: tuple[str, ...]) -> bool:
+        return any(nombre in nombres_de_hoja for nombre in candidatas)
+
+    def _cargar_facts_ecp(
+        self,
+        libro: Any,
+        reporte_id: int,
+        dims: dict[str, Any],
+        filas_por_destino: dict[str, int],
+        hojas: list[HojaIngerida],
+    ) -> None:
+        """Los tres facts de ECP, que solo existen en los archivos NEW."""
+        self._cargar_uno(
+            libro, "BDP_datos_dia", "core.fact_produccion_dia_ecp",
+            lambda hoja: cargar_produccion_dia(hoja, reporte_id, self._repo, dims),
+            reporte_id, filas_por_destino, hojas,
+        )  # fmt: skip
+
+        def cargar_mes(hoja: Any) -> Any:
+            def avisar(acumuladas: int) -> None:
+                self._emitir(
+                    EventoAvance(
+                        hoja="BDP_datos_mes",
+                        destino="core.fact_produccion_mes_ecp",
+                        filas=acumuladas,
+                    )
+                )
+
+            return cargar_produccion_mes(hoja, reporte_id, self._repo, dims, avisar)
+
+        self._cargar_uno(
+            libro, "BDP_datos_mes", "core.fact_produccion_mes_ecp", cargar_mes,
+            reporte_id, filas_por_destino, hojas,
+        )  # fmt: skip
+
+        # El programa puede referirse a fuentes que ningún fact diario trajo: sin
+        # presembrarlas, el INSERT violaría la clave foránea.
+        presembrar_fuentes_de_programa(libro["BDP_Programa"], reporte_id, self._repo)
+        self._cargar_uno(
+            libro, "BDP_Programa", "core.fact_programa_ecp",
+            lambda hoja: cargar_programa(hoja, reporte_id, self._repo, dims),
+            reporte_id, filas_por_destino, hojas,
+        )  # fmt: skip
+
+    def _cargar_tablas_de_apoyo(
+        self,
+        libro: Any,
+        nombres_de_hoja: list[str],
+        reporte_id: int,
+        dims: dict[str, Any],
+        filas_por_destino: dict[str, int],
+        hojas: list[HojaIngerida],
+    ) -> None:
+        """Comentarios, filiales, POP y promedios — presentes en NEW y en STD."""
+        trabajos: list[tuple[str, str, Any]] = [
+            (
+                "COMENTARIOS",
+                "core.fact_comentarios_produccion",
+                lambda hoja: cargar_comentarios(hoja, reporte_id, self._repo, dims),
+            ),
+            (
+                "Producción filiales",
+                "core.fact_produccion_diaria",
+                lambda hoja: cargar_filiales(hoja, reporte_id, self._repo, dims),
+            ),
+            (
+                "POP Filiales y Exploración",
+                "core.fact_plan_mensual",
+                lambda hoja: cargar_pop(hoja, reporte_id, self._repo, dims),
+            ),
+            (
+                "INICIO",
+                "core.fact_promedio_validado",
+                lambda hoja: cargar_promedios(hoja, reporte_id, self._repo, dims),
+            ),
+        ]
+        for nombre_hoja, destino, trabajo in trabajos:
+            if nombre_hoja not in nombres_de_hoja:
+                continue
+            self._cargar_uno(
+                libro,
+                nombre_hoja,
+                destino,
+                trabajo,
+                reporte_id,
+                filas_por_destino,
+                hojas,
+            )
+
+        # El calendario del reporte se completa en una segunda pasada sobre INICIO.
+        if "INICIO" in nombres_de_hoja:
+            completar_calendario(libro["INICIO"], reporte_id, self._repo)
+
+    def _cargar_uno(
+        self,
+        libro: Any,
+        nombre_hoja: str,
+        destino: str,
+        trabajo: Any,
+        reporte_id: int,
+        filas_por_destino: dict[str, int],
+        hojas: list[HojaIngerida],
+    ) -> None:
+        """Ejecuta un loader y publica su resultado.
+
+        Igual que con los extractores, un loader que revienta no aborta la ingesta: se
+        reporta esa hoja como `error` y el resto continúa.
+        """
+        self._emitir(EventoHoja(hoja=nombre_hoja, estado="procesando"))
+        try:
+            resultado = trabajo(libro[nombre_hoja])
+        except Exception as excepcion:  # noqa: BLE001 — una hoja no tumba el resto
+            logger.error(
+                "loader_fallo", hoja=nombre_hoja, error=str(excepcion), exc_info=True
+            )
+            self._repo.registrar_en_bitacora(
+                reporte_id, nombre_hoja, destino, 0, 0,
+                estado="ERROR", mensaje=str(excepcion)[:500],
+            )  # fmt: skip
+            self._emitir(
+                EventoHoja(
+                    hoja=nombre_hoja,
+                    estado="error",
+                    destino=destino,
+                    detalle=str(excepcion)[:300],
+                )
+            )
+            return
+
+        self._repo.registrar_en_bitacora(
+            reporte_id, nombre_hoja, destino, resultado.leidas, resultado.insertadas
+        )
+        filas_por_destino[destino] = resultado.insertadas
+        hojas.append(
+            HojaIngerida(hoja=nombre_hoja, destino=destino, filas=resultado.insertadas)
+        )
+        if resultado.descartadas:
+            logger.info(
+                "filas_descartadas",
+                hoja=nombre_hoja,
+                descartadas=resultado.descartadas,
+                motivo="sin fecha o sin IDBDP",
+            )
+        self._emitir(
+            EventoHoja(
+                hoja=nombre_hoja,
+                estado="procesada" if resultado.insertadas else "vacia",
+                destino=destino,
+                filas=resultado.insertadas,
+            )
+        )
 
     # ── Hojas modeladas → core.fact_tabla_hoja ──────────────────────────────
 
