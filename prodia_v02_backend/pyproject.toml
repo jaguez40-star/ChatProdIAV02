@@ -39,6 +39,13 @@ dev = [
     "httpx",
     "pre-commit",
     "types-requests",
+    # `yaml` NO trae `py.typed` y NO está en los overrides de mypy, así que el
+    # primer `import yaml` dentro de `src/` rompe `mypy --strict` con
+    # "Library stubs not installed" — verificado ejecutándolo (2026-08-20).
+    # Los 4 `config/*.yaml` del Motor Q (F4) y el `clasificacion_feedback.yaml`
+    # de F5 hacen que ese import sea inevitable, así que el stub va declarado
+    # ANTES de que la primera feature lo necesite.
+    "types-PyYAML",
     "sqlalchemy[mypy]>=2.0",
 ]
 
