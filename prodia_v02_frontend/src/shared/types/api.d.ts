@@ -595,6 +595,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/consulta/preguntar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clasifica y responde una pregunta del chat
+         * @description Una pregunta del chat: clasifica, reescribe si es continuación y responde.
+         *
+         *     Sync (`def`, no `async def`) como el resto del proyecto: SQLAlchemy es
+         *     síncrona y FastAPI ya ejecuta estas rutas en su threadpool.
+         */
+        post: operations["preguntar_api_v1_consulta_preguntar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consulta/veredicto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Registra el ✓/✗ del usuario sobre una clasificación
+         * @description Control 1 de la libreta: el juicio del propio usuario.
+         *
+         *     `fuente` la fija el servidor en `"usuario"`: si viniera del cliente, se
+         *     podrían marcar veredictos como si fueran de la revisión por lotes.
+         */
+        post: operations["veredicto_api_v1_consulta_veredicto_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -1075,6 +1121,25 @@ export interface components {
              */
             unidad_default: string;
         };
+        /**
+         * Panel
+         * @description El panel que acompaña a una respuesta, si lo hay.
+         *
+         *     `datos` es deliberadamente abierto: cada tipo tiene su forma, y quien la
+         *     valida es la unión discriminada del frontend. Cerrarlo aquí obligaría a
+         *     nueve modelos que solo duplicarían esa definición.
+         */
+        Panel: {
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "cuant_kpi" | "cuant_serie" | "cuant_var" | "cuant_rank" | "jerarq_arbol" | "jerarq_operador" | "jerarq_rank" | "p50_vp" | "analiza_foco";
+            /** Datos */
+            datos: {
+                [key: string]: unknown;
+            };
+        };
         /** PermissionGroupOut */
         PermissionGroupOut: {
             /** Id */
@@ -1085,6 +1150,16 @@ export interface components {
             description?: string | null;
             /** Is Admin */
             is_admin: boolean;
+        };
+        /**
+         * PreguntarIn
+         * @description Una pregunta del chat.
+         */
+        PreguntarIn: {
+            /** Texto */
+            texto: string;
+            /** Conversacion Id */
+            conversacion_id: string;
         };
         /**
          * ProduccionDiaOut
@@ -1183,6 +1258,40 @@ export interface components {
              * @description Nivel de detalle del reporte.
              */
             nivel_detalle?: string | null;
+        };
+        /**
+         * RespuestaQ
+         * @description Lo que devuelve el motor por cada pregunta.
+         */
+        RespuestaQ: {
+            /** Log Id */
+            log_id?: number | null;
+            /** Texto Original */
+            texto_original: string;
+            /**
+             * Grupo
+             * @enum {string}
+             */
+            grupo: "jerarquizar" | "cuantificar" | "analizar" | "desconocido";
+            /** Grupo Label */
+            grupo_label: string;
+            /** Capa Resolutora */
+            capa_resolutora: string;
+            /** Entidad Cruda */
+            entidad_cruda?: string | null;
+            /** Patrones */
+            patrones?: string[];
+            /** Llm Diag */
+            llm_diag?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Mensaje */
+            mensaje: string;
+            panel?: components["schemas"]["Panel"] | null;
+            /** Vp Ofrecida */
+            vp_ofrecida?: string | null;
+            /** Continuacion */
+            continuacion?: boolean | null;
         };
         /** ResumenColisionesOut */
         ResumenColisionesOut: {
@@ -1421,6 +1530,30 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VeredictoIn
+         * @description El juicio del usuario sobre una clasificación (control 1 de la libreta).
+         *
+         *     `fuente` NO se acepta del cliente: la pone el servidor según el endpoint.
+         *     Dejarla abierta permitiría que un usuario marcara sus propios veredictos
+         *     como si vinieran de la revisión por lotes.
+         */
+        VeredictoIn: {
+            /** Log Id */
+            log_id: number;
+            /**
+             * Veredicto
+             * @enum {string}
+             */
+            veredicto: "confirmado_usuario" | "corregido_usuario";
+            /** Grupo Correcto */
+            grupo_correcto?: ("jerarquizar" | "cuantificar" | "analizar" | "desconocido") | null;
+        };
+        /** VeredictoOut */
+        VeredictoOut: {
+            /** Ok */
+            ok: boolean;
         };
         /** WaterfallOut */
         WaterfallOut: {
@@ -2658,6 +2791,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    preguntar_api_v1_consulta_preguntar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreguntarIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RespuestaQ"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    veredicto_api_v1_consulta_veredicto_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VeredictoIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VeredictoOut"];
                 };
             };
             /** @description No autenticado — falta la cookie de sesión o es inválida */
