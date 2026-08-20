@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SECCIONES } from '../secciones';
 import { useAuthStore } from '../store/authStore';
 import { LayoutMain } from './LayoutMain';
 
@@ -28,7 +29,12 @@ const USUARIO = {
   updatedAt: '2026-01-01T00:00:00Z',
 };
 
-function montar(rutaInicial = '/') {
+function montar(rutaInicial = '/', opciones?: { isAdmin?: boolean }) {
+  if (opciones?.isAdmin === false) {
+    useAuthStore
+      .getState()
+      .setSession({ ...USUARIO, isAdmin: false }, { campos: [], sections: [] });
+  }
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -114,17 +120,42 @@ describe('LayoutMain', () => {
     montar();
     await screen.findByRole('button', { name: 'Menú de usuario' });
 
-    // Ha pasado DOS veces: F2 creó /analisis y F3 creó /ingesta, y ninguna
-    // quedó enlazada — la página existía pero solo se llegaba escribiendo la
-    // URL a mano. Este test convierte ese descuido en un fallo de build.
-    const RUTAS_DE_SECCION = ['/', '/analisis', '/ingesta'];
+    // Ha pasado TRES veces: F2 creó /analisis, F3 creó /ingesta y F5 creó
+    // /test-clas, y ninguna quedó enlazada — la página existía pero solo se
+    // llegaba escribiendo la URL a mano.
+    //
+    // 🔑 La versión anterior de este test NO lo atrapó, y por eso ocurrió la
+    // tercera vez: repetía las rutas en una constante local, así que verificaba
+    // su propia lista en vez de la que monta la aplicación. Una ruta nueva
+    // nunca lo rompía.
+    //
+    // Ahora las rutas se derivan de `secciones.ts`, la misma fuente que usan
+    // el router y el header. Añadir una sección sin enlazarla rompe el build.
     const enlazadas = screen
       .getAllByRole('link')
       .map((a) => a.getAttribute('href'));
 
-    for (const ruta of RUTAS_DE_SECCION) {
+    // El usuario del fixture es admin, así que debe ver TODAS las secciones.
+    for (const { ruta } of SECCIONES) {
       expect(enlazadas).toContain(ruta);
     }
+  });
+
+  it('oculta las secciones admin a un usuario normal (DT-3)', async () => {
+    // 🔑 El backend ya decide de verdad (403). Esto solo evita ofrecer una
+    // puerta cerrada: sin el filtro, un usuario sin permiso ve "Test Clas" y
+    // al pulsarlo recibe un error, que se lee como una avería del sistema.
+    montar('/', { isAdmin: false });
+    await screen.findByRole('button', { name: 'Menú de usuario' });
+
+    const enlazadas = screen
+      .getAllByRole('link')
+      .map((a) => a.getAttribute('href'));
+
+    expect(enlazadas).not.toContain('/test-clas');
+    // Las abiertas siguen visibles: filtrar no puede dejar sin navegación.
+    expect(enlazadas).toContain('/');
+    expect(enlazadas).toContain('/analisis');
   });
 
   it('marca como activa la sección de la ruta actual', async () => {

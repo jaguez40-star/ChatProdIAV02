@@ -6,25 +6,15 @@ import { InactivitySessionModal } from '../../features/auth/components/Inactivit
 import { useInactivityLogout } from '../../features/auth/hooks/useInactivityLogout';
 import { useLogout } from '../../features/auth/hooks/useLogout';
 import { SessionExpiryBanner } from '../../shared/components/SessionExpiryBanner';
+import { seccionesVisibles } from '../secciones';
 import { MenuUsuario } from './components/MenuUsuario';
 import styles from './LayoutMain.module.scss';
 
-/**
- * Secciones navegables. Vive aquí como dato plano y NO importa nada de las
- * features: el layout solo conoce rutas y etiquetas, nunca sus hooks — es la
- * corrección de C10, donde el layout de Robustez V02 importaba hooks de 4
- * features para alimentar un ticker e invertía la dependencia.
- *
- * Sin filtro por permiso todavía (C4/DT-3): el backend ya calcula `sections`,
- * pero `tablas` y `analisis` solo exigen usuario autenticado, así que filtrar
- * hoy dejaría sin navegación a quien tenga la lista vacía. Se cierra cuando
- * una sección exija un permiso propio, usando los IDs exactos del backend.
- */
-const SECCIONES = [
-  { ruta: '/', etiqueta: 'Consulta' },
-  { ruta: '/analisis', etiqueta: 'Análisis' },
-  { ruta: '/ingesta', etiqueta: 'Ingesta' },
-] as const;
+// Las secciones ya NO se declaran aquí: viven en `app/secciones.ts`, que es la
+// fuente única que también alimenta al router. Repetir la lista en dos sitios
+// es justo lo que dejó `/analisis`, `/ingesta` y `/test-clas` sin enlace en su
+// momento. El layout sigue sin importar nada de las features (C10 intacta):
+// `secciones.ts` es dato plano, rutas y etiquetas.
 
 /**
  * Simplificado respecto de Robustez V02 (que además tiene drawer lateral y
@@ -82,7 +72,10 @@ export function LayoutMain() {
 
       <header className={styles.header} ref={headerRef}>
         <nav className={styles.nav} aria-label="Secciones">
-          {SECCIONES.map(({ ruta, etiqueta }) => (
+          {/* `user` es null durante el logout, mientras el layout aún está
+              montado. Sin permiso conocido, se muestran solo las secciones
+              abiertas: nunca una admin. */}
+          {seccionesVisibles(user?.isAdmin ?? false).map(({ ruta, etiqueta }) => (
             <NavLink
               key={ruta}
               to={ruta}
