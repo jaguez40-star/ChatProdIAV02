@@ -214,15 +214,40 @@ def test_las_sospechas_van_primero(db: Session) -> None:
 
 
 @pytest.mark.parametrize(
-    ("filtro", "esperadas"), [("pendientes", 2), ("sospecha", 1), ("todas", 3)]
+    ("filtro", "esperadas"),
+    [
+        # «Pendientes» son las 3: la sospechosa TAMBIÉN está sin juzgar. La
+        # sospecha es una bandera de prioridad, no un veredicto (F5 corrigió
+        # este filtro, que antes la excluía y escondía justo lo más urgente).
+        ("pendientes", 3),
+        ("sospecha", 1),
+        ("todas", 3),
+    ],
 )
-def test_los_filtros(db: Session, filtro: str, esperadas: int) -> None:
+def test_los_filtros(
+    db: Session, filtro: libreta.FiltroLibreta, esperadas: int
+) -> None:
     _registrar(db, texto="a")
     b = _registrar(db, texto="b")
     _registrar(db, texto="c")
     libreta.marcar_sospecha(db, b)
 
     assert len(libreta.listar(db, filtro=filtro)["filas"]) == esperadas
+
+
+def test_pendientes_incluye_las_sospechas(db: Session) -> None:
+    """La regla que el filtro anterior rompía, fijada aparte para que no se
+    vuelva a perder: quien revisa la cola tiene que VER las sospechas."""
+    _registrar(db, texto="normal")
+    sospechosa = _registrar(db, texto="sospechosa")
+    libreta.marcar_sospecha(db, sospechosa)
+
+    textos = [
+        f["texto_pregunta"] for f in libreta.listar(db, filtro="pendientes")["filas"]
+    ]
+
+    assert "sospechosa" in textos
+    assert "normal" in textos
 
 
 def test_el_limite_se_acota(db: Session) -> None:
@@ -235,7 +260,79 @@ def test_el_limite_se_acota(db: Session) -> None:
     assert len(libreta.listar(db, limite=99999)["filas"]) == 5  # se baja a 500
 
 
-def test_un_filtro_desconocido_no_rompe(db: Session) -> None:
-    """Degrada a "todas" en vez de lanzar: es un parámetro de consulta."""
+def test_un_filtro_desconocido_es_un_error_del_llamador(db: Session) -> None:
+    """Antes degradaba a "todas" en silencio, razonándolo como "es un parámetro
+    de consulta". Pero degradar aquí MIENTE: pedir «sospechas» (en plural, una
+    errata) devolvía la libreta entera y el revisor creía estar viendo solo las
+    sospechas — sobre el dato que decide qué entra al golden.
+
+    Ahora el valor lo valida FastAPI en el borde (422 con `errors[]`), así que
+    un filtro inválido en esta capa solo puede venir de un bug nuestro, y un
+    bug tiene que doler.
+    """
     _registrar(db, texto="a")
-    assert len(libreta.listar(db, filtro="inventado")["filas"]) == 1
+
+    with pytest.raises(KeyError):
+        libreta.listar(db, filtro="inventado")  # type: ignore[arg-type]
+
+
+def test_el_resumen_mide_el_porcentaje_de_capa_1(db: Session) -> None:
+    """`pct_capa1` es el KPI que justifica la libreta (regla A4)."""
+    _registrar(db, texto="a", capa="regex")
+    _registrar(db, texto="b", capa="regex")
+    _registrar(db, texto="c", capa="llm")
+    _registrar(db, texto="d", capa="regex+filtro")
+
+    resumen = libreta.listar(db)["resumen"]
+
+    assert resumen["total"] == 4
+    assert resumen["pct_capa1"] == 50.0  # 2 de 4 por regex pura
+    assert resumen["por_veredicto"]["pendiente"] == 4
+
+
+def test_el_resumen_de_una_libreta_vacia_no_divide_por_cero(db: Session) -> None:
+    """`None` dice "no hay dato"; un 0 % afirmaría que la regex no resuelve
+    nada, que es una conclusión muy distinta."""
+    resumen = libreta.listar(db)["resumen"]
+
+    assert resumen["total"] == 0
+    assert resumen["pct_capa1"] is None
+
+
+def test_el_resumen_no_depende_del_filtro_activo(db: Session) -> None:
+    """Si cambiara al pulsar un chip, dejaría de ser una medida del motor."""
+    _registrar(db, texto="a", capa="regex")
+    sospechosa = _registrar(db, texto="b", capa="llm")
+    libreta.marcar_sospecha(db, sospechosa)
+
+    completo = libreta.listar(db, filtro="todas")["resumen"]
+    filtrado = libreta.listar(db, filtro="sospecha")["resumen"]
+
+    assert filtrado == completo
+
+
+def test_el_lote_aplica_lo_que_puede_y_reporta_el_resto(db: Session) -> None:
+    """Una fila inexistente no tumba las demás — pero el conteo lo delata."""
+    a = _registrar(db, texto="a")
+    b = _registrar(db, texto="b")
+
+    aplicados, total = libreta.poner_veredictos_en_lote(
+        db,
+        [
+            (a, "confirmado_revision", None),
+            (b, "corregido_revision", "analizar"),
+            (999_999, "confirmado_revision", None),  # no existe
+        ],
+    )
+
+    assert (aplicados, total) == (2, 3)
+
+
+def test_el_lote_no_acepta_un_veredicto_invalido(db: Session) -> None:
+    a = _registrar(db, texto="a")
+
+    aplicados, total = libreta.poner_veredictos_en_lote(
+        db, [(a, "me_lo_invento", None)]
+    )
+
+    assert (aplicados, total) == (0, 1)
