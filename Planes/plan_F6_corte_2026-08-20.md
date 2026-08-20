@@ -5,10 +5,18 @@
 > `ProdIA_V02/`, el origen en `12112025_prodIA/12112025_prodIA/`, y los seis pipelines configurados.
 > Todos los números están **medidos**, no estimados.
 >
-> **⛔ F6 NO ES EJECUTABLE HOY.** No por falta de plan, sino porque tres fases anteriores no están
-> cerradas y porque **el despliegue de producción no existe en ninguna forma** (0 artefactos
-> medidos). Ver §0.1. Este plan documenta el corte completo y define el camino, pero su Bloque 1
-> no puede empezar hasta que se resuelvan los bloqueantes B-1…B-4.
+> **Estado de ejecución (2026-08-20).** Los bloques **1, 2 y 3 están hechos** (commits `dfadab9`,
+> `6965ed5`, `aaaa589`), y con ellos **B-3 y B-4 quedan cerrados**. F5 se completó, así que **B-2
+> también cae**. Queda **B-1** (F1 sin frontend) y el Bloque 0 (R3 pendiente), que dependen de ti.
+>
+> | Bloqueante | Estado |
+> |---|---|
+> | B-1 · F1 sin frontend | ⛔ **abierto** — 7 endpoints sin consumidor |
+> | B-2 · F5 al 0 % | ✅ **cerrado** — F5 completa (`df64d27`) |
+> | B-3 · sin despliegue | ✅ **cerrado** — `Start_Prod.bat`, `desplegar_v02.bat`, `docs/DESPLIEGUE.md` |
+> | B-4 · nadie sirve el `dist/` | ✅ **cerrado** — `StaticFiles` + fallback SPA, verificado contra servidor real |
+>
+> Lo que sigue bloqueado es el **Bloque 4** (paridad en el 139) y el **Bloque 5** (el corte).
 
 ---
 
@@ -97,6 +105,21 @@ archivo.
 | **AP-4** | El hook `gen-types-check` se dispara con todo `src/(main|features)/**.py` y corre `pnpm run gen:types`, que **importa `src.main` entero** | `.pre-commit-config.yaml` | Si F6 monta `StaticFiles` en `main.py` (§5.2), el `dist/` **debe poder no existir** sin reventar el import. Regla no negociable nº 5 |
 | **AP-5** | **Gate de cobertura GLOBAL**: backend `fail_under=75`, frontend 80 % × 4 | `pyproject.toml:114`, `vitest.config.ts:31` | F1-frontend (B-1) añadiría ~600 líneas de golpe. **Es el mismo riesgo AP-1 que ya ocurrió de verdad con F3** (78,97 % → 72,41 %, CI rojo). Verificar cobertura al cerrar **cada bloque** |
 | **AP-6** | El test de navegación **no protege de verdad**. `LayoutMain.test.tsx` verifica que toda ruta tenga enlace, pero `RUTAS_DE_SECCION = ['/', '/analisis', '/ingesta']` está **hardcodeada dentro del test** | Medido en el archivo | Una ruta nueva (`/control`, `/testclas`) **no rompe el test**. F6 debe derivar la lista de `router.tsx`, o el olvido que ya ocurrió dos veces (F2 y F3) se repetirá |
+
+### 0.4.1 🔑 Lo que solo apareció al EJECUTAR los bloques 1-3
+
+Tres hallazgos que ningún análisis estático habría dado, y que justifican por sí solos haber
+verificado contra un servidor real en vez de contra mocks:
+
+| # | Hallazgo | Cómo apareció |
+|---|---|---|
+| **E-1** | **`AuthMiddleware` dejaba la aplicación INARRANCABLE en producción.** Protegía también los ficheros del frontend, así que un usuario sin sesión pedía `/` y recibía un **401 en vez de la pantalla de login** — sin forma de autenticarse. Ni el HTML ni el CSS de esa pantalla cargaban | Un test del Bloque 1 falló al pedir `/analisis`. Nunca se había visto porque en desarrollo Vite sirve los estáticos **sin pasar por el backend**: el fallo solo existe al servirlos desde FastAPI, que es justo lo que exige el despliegue. **Corrección**: los estáticos son públicos (los mismos ficheros que ya sirve Vite); deny-by-default sigue intacto en todo `/api/v1/*`, verificado con un 401 real |
+| **E-2** | **AP-6 se cumplió por tercera vez, y el guardián propuesto tampoco servía.** F5 montó `/test-clas` sin enlazarla. Y al probar el test corregido comparando el header contra `secciones.ts`, **seguía sin detectar nada**: quitar una sección la quita de las dos listas a la vez | Se descubrió provocando el fallo a propósito. **Corrección**: `router.test.ts` compara las dos fuentes **reales** entre sí —las rutas que monta `router.tsx` contra las secciones declaradas—, no una lista escrita en el test. Verificado: añadir `/control` al router sin declararla rompe el build |
+| **E-3** | `user` es `null` durante el logout mientras el layout sigue montado, así que `user.isAdmin` reventaba | Lo atrapó la suite existente al filtrar la navegación. Sin permiso conocido se muestran solo las secciones abiertas — nunca una admin |
+
+🔑 E-2 es el más instructivo: **un guardián mal construido es peor que ninguno**, porque da la
+sensación de estar protegido. El test anterior llevaba desde F1a en el repo, tenía un comentario
+explicando que el olvido «ha pasado DOS veces»… y no atrapó la tercera.
 
 ### 0.5 Hallazgos de seguridad del sistema viejo (S1-S3)
 
@@ -340,9 +363,9 @@ retiro se vuelve interminable. Ver DC-1.
 | Bloque | Qué | Depende de | Verificación |
 |---|---|---|---|
 | **0** | Cerrar R3 pendiente: DT-8 (Ejecutivo + 4 pills), `/ingesta` en navegador, golden `clasificacion` con Ollama | VPN + Ollama | El usuario firma cada uno (R3) |
-| **1** | **B-4**: `StaticFiles` + fallback SPA + tolerar `dist/` ausente (§5.2) | — | `pnpm build` && arrancar sin Vite && recargar en `/analisis` → no 404 |
-| **2** | **B-3**: `Start_Prod.bat` + `desplegar_v02.bat` + `docs/DESPLIEGUE.md` (§5.3) | 1 | Arranque limpio en una máquina sin `uv` en PATH |
-| **3** | `humo_paridad.py` + AP-6 (test de navegación real) + DT-3 (filtro por `sections`) | 1 | Cobertura ≥ umbral **al cerrar el bloque** (AP-5) |
+| ~~**1**~~ ✅ | **B-4**: `StaticFiles` + fallback SPA + tolerar `dist/` ausente (§5.2) | — | **Hecho** (`dfadab9`) — verificado contra servidor real: raíz 200 HTML, `/analisis` 200 al recargar, API sin cookie 401 con `correlation_id`, assets 200 |
+| ~~**2**~~ ✅ | **B-3**: `Start_Prod.bat` + `desplegar_v02.bat` + `docs/DESPLIEGUE.md` (§5.3) | 1 | **Hecho** (`6965ed5`) |
+| ~~**3**~~ ✅ | `humo_paridad.py` + AP-6 + DT-3 | 1 | **Hecho** (`6965ed5`, `aaaa589`) — 866 tests backend 84,12 % · 336 frontend 84,93 % |
 | **4** | **Despliegue paralelo en el 139** y verificación de paridad (§5.4) | 0,2,3 + B-1 + B-2 | Las 3 anclas coinciden. **Castilla = 78.629 kUSD** |
 | **5** | **El corte** (§5.5), paso a paso, verificando el chatbot entre cada uno | 4 firmado | El chatbot funciona idéntico antes y después |
 | **6** | Actualizar CLAUDE.md: cerrar P1, DT-3, DT-8; bitácora | 5 | — |
