@@ -1,0 +1,27 @@
+@use '../../../shared/styles/tokens' as *;
+
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-4;
+  padding: $pv-space-4;
+}
+
+.encabezado { display: flex; flex-direction: column; gap: $pv-space-1; }
+.titulo { margin: 0; font-size: 1.25rem; font-weight: 700; color: $pv-primary; }
+.subtitulo { margin: 0; font-size: 0.85rem; color: $pv-muted; }
+
+.secciones { display: flex; flex-wrap: wrap; gap: $pv-space-2; }
+
+.seccion, .seccionActiva {
+  display: flex; flex: 1 1 200px; flex-direction: column; gap: 2px;
+  padding: $pv-space-2 $pv-space-3; font-family: inherit; text-align: left;
+  cursor: pointer; background: $pv-white; border: 1px solid $pv-border;
+  border-radius: $pv-radius-md; transition: border-color $pv-transition-base;
+}
+
+.seccionActiva { background: $pv-lime-soft; border-color: $pv-primary; }
+.seccionEtiqueta { font-size: 0.9rem; font-weight: 600; color: $pv-primary; }
+.seccionDescripcion { font-size: 0.75rem; color: $pv-muted; }
+
+.contenido { min-height: 300px; }

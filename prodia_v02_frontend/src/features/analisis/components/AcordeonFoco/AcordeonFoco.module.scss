@@ -1,0 +1,44 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.foco { background: $pv-white; border: 1px solid $pv-border; border-radius: $pv-radius-md; }
+
+.cabecera {
+  display: flex; flex-wrap: wrap; gap: $pv-space-2; align-items: center; width: 100%;
+  padding: $pv-space-3; font-family: inherit; font-size: 0.85rem; text-align: left;
+  cursor: pointer; background: none; border: none;
+}
+
+.producto { font-weight: 700; color: $pv-primary; }
+.entidades { font-weight: 600; }
+.tituloFoco { color: $pv-muted; }
+.flecha { margin-left: auto; color: $pv-muted; }
+.etiquetaOk, .etiquetaFoco { padding: 1px 8px; font-size: 0.68rem; font-weight: 600; border-radius: 999px; }
+.etiquetaOk { color: $pv-pos; background: #e8f3ec; }
+.etiquetaFoco { color: #7a2020; background: #fde8e8; }
+
+.cuerpo { display: flex; flex-direction: column; gap: $pv-space-3; padding: 0 $pv-space-3 $pv-space-3; border-top: 1px solid $pv-border; }
+.causa { margin: $pv-space-3 0 0; font-size: 0.82rem; line-height: 1.5; }
+.detalle { padding-left: $pv-space-4; margin: 0; font-size: 0.8rem; line-height: 1.6; color: $pv-muted; }
+.accion { margin: 0; font-size: 0.8rem; font-style: italic; color: $pv-muted; }
+
+.pills { display: flex; flex-wrap: wrap; gap: $pv-space-1; }
+.pill, .pillActiva {
+  padding: $pv-space-1 $pv-space-3; font-family: inherit; font-size: 0.78rem;
+  cursor: pointer; background: $pv-bg; border: 1px solid $pv-border; border-radius: 999px;
+}
+.pillActiva { font-weight: 600; color: $pv-white; background: $pv-primary; border-color: $pv-primary; }
+
+.contenidoPill { min-height: 80px; }
+.vacio { padding: $pv-space-4; margin: 0; font-size: 0.82rem; color: $pv-muted; text-align: center; }
+.tenue { font-size: 0.78rem; color: $pv-muted; }
+
+.tabla {
+  width: 100%; font-size: 0.8rem; border-collapse: collapse;
+  th, td { padding: $pv-space-2; text-align: left; border-bottom: 1px solid $pv-border; }
+  th { font-size: 0.7rem; color: $pv-muted; text-transform: uppercase; }
+}
+
+.abierto { color: #7a5320; font-weight: 600; }
+.cerrado { color: $pv-muted; }
+.eventos { padding: 0; margin: 0; list-style: none; }
+.textoEvento { margin: $pv-space-1 0 $pv-space-2; font-size: 0.8rem; line-height: 1.5; color: $pv-muted; }

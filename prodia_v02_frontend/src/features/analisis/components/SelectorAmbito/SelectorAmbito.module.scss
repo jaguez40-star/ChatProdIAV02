@@ -1,0 +1,44 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $pv-space-3;
+  align-items: flex-end;
+  padding: $pv-space-3;
+  background: $pv-panel;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+}
+
+.campo {
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  gap: $pv-space-1;
+  min-width: 0;
+}
+
+.etiqueta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: $pv-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.control {
+  padding: $pv-space-2;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: inherit;
+  background: $pv-white;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-sm;
+
+  &:disabled {
+    color: $pv-muted;
+    background: $pv-bg;
+    cursor: not-allowed;
+  }
+}

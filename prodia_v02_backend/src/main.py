@@ -27,13 +27,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import get_settings
 from src.core.exceptions import register_exception_handlers
 from src.core.logger import get_logger, setup_logging
+from src.features.analisis.api import router as analisis_router
 from src.features.auth.api import router as auth_router
+from src.features.diferidas.api import router as diferidas_router
+from src.features.ebitda.api import router as ebitda_router
+from src.features.mantenimientos.api import router as mantenimientos_router
 from src.features.permissions.api import router as permissions_router
 from src.features.tablas.api import router as tablas_router
 from src.middleware.auth import AuthMiddleware
 from src.middleware.correlation_id import CorrelationIdMiddleware
 from src.middleware.request_logger import RequestLoggerMiddleware
 from src.shared.db_auth import check_db_connection, verify_auth_db_schema
+from src.shared.db_ops import check_ops_connection
 from src.shared.db_prod import check_prod_connection
 
 settings = get_settings()
@@ -51,6 +56,35 @@ OPENAPI_TAGS: list[dict[str, str]] = [
         "description": (
             "Visor de reportes de producción (Control): árbol año/mes/día, hojas y "
             "contenido de tablas. Lee `db_prod` — 503 si PostgreSQL no está disponible."
+        ),
+    },
+    {
+        "name": "Análisis",
+        "description": (
+            "Análisis avanzado de producción: fundación de datos (catálogo, "
+            "densidad, huella, cobertura). Lee `db_prod` — 503 si PostgreSQL "
+            "no está disponible."
+        ),
+    },
+    {
+        "name": "EBITDA",
+        "description": (
+            "Waterfall economico Ingresos-NOPAT. Lee la BD operacional ROBUSTEZ "
+            "(`ops`) - 503 si no esta configurada o no responde."
+        ),
+    },
+    {
+        "name": "Diferidas",
+        "description": (
+            "Historico de produccion diferida por causa (SQLite). Degrada "
+            "siempre con HTTP 200."
+        ),
+    },
+    {
+        "name": "Mantenimientos",
+        "description": (
+            "Eventos de servicio a pozo que solapan el mes analizado. Degrada "
+            "siempre con HTTP 200."
         ),
     },
     {"name": "Health", "description": "Estado del backend y sus bases de datos."},
@@ -119,16 +153,23 @@ register_exception_handlers(app)
 app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(permissions_router, prefix=API_PREFIX)
 app.include_router(tablas_router, prefix=API_PREFIX)
+app.include_router(analisis_router, prefix=API_PREFIX)
+app.include_router(ebitda_router, prefix=API_PREFIX)
+app.include_router(diferidas_router, prefix=API_PREFIX)
+app.include_router(mantenimientos_router, prefix=API_PREFIX)
 
 
 @app.get(f"{API_PREFIX}/health", tags=["Health"])
 async def health_check() -> dict[str, Any]:
     db_auth_ok = check_db_connection()
     db_prod_ok = check_prod_connection()
+    # db_ops es OPCIONAL: sin ella solo cae /ebitda, no la app.
+    db_ops_ok = check_ops_connection()
     return {
         "status": "ok" if (db_auth_ok and db_prod_ok) else "degraded",
         "version": app.version,
         "database_auth": "connected" if db_auth_ok else "disconnected",
         "database_prod": "connected" if db_prod_ok else "disconnected",
+        "database_ops": "connected" if db_ops_ok else "disconnected",
         "environment": settings.app_env,
     }

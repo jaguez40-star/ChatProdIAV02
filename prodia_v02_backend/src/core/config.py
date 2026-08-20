@@ -46,6 +46,62 @@ class Settings(BaseSettings):
     # BD operacional de ROBUSTEZ (schema `ops.*`) — usada desde F2 (EBITDA).
     ops_database_url: str = ""
 
+    # ── Fuentes de datos de F2 (Análisis) ───────────────────────────────────
+    # Rutas a ficheros de datos operativos. Viven FUERA del repo (.gitignore) y
+    # se copian al desplegar. Default vacío a propósito: un campo obligatorio
+    # rompería `scripts/export_openapi.py` —y con él el pre-commit y CI— en
+    # cualquier máquina que no tenga los ficheros. Ausente = la feature degrada
+    # con `sin_datos` + `motivo`, nunca un 500.
+    #
+    # ECP_DIFERIDAS.db (954 MB): se abre SOLO LECTURA. Su tabla de respaldo
+    # `AVM_DATADIF_BACK` y los índices `ix_dd_event`/`ix_dd_cover` están
+    # corruptos (verificado 2026-08-20), pero `AVM_DATADIF` —la única que se
+    # consulta— está sana con 1.142.599 filas. Por eso NUNCA se debe hacer
+    # `SELECT count(*)` a secas sobre ella: SQLite lo resolvería con el índice
+    # corrupto y fallaría. Filtrar por columna fuerza escaneo de tabla y
+    # funciona; contar filas se hace en Python tras el GROUP BY, como el origen.
+    diferidas_db_path: str = ""
+    eventos_ow_path: str = ""
+
+    # ── LLM (Ollama) — F2 usa el pulido de prosa del Análisis Ejecutivo ──────
+    consulta_ollama_url: str = "http://localhost:11434/api/generate"
+    consulta_llm_model: str = "qwen2.5:3b"
+    # Cuánto queda residente el modelo tras cada petición. "-1" = indefinido.
+    # Una petición SIN keep_alive resetea el de Ollama a 5 min y el modelo se
+    # descarga en el primer hueco de inactividad; la siguiente llamada vuelve a
+    # pagar el arranque en frío (~342 s > timeout → fallback sin prosa).
+    consulta_keep_alive: str = "-1"
+
+    @property
+    def keep_alive_ollama(self) -> int | str:
+        """Valor para el body de Ollama: entero si es numérico, si no la cadena
+        de duración tal cual ("5m"). Ollama exige el ENTERO -1 como número JSON
+        — la cadena "-1" la interpretaría como duración Go inválida y fallaría.
+        """
+        valor = self.consulta_keep_alive.strip()
+        try:
+            return int(valor)
+        except ValueError:
+            return valor
+
+    # ── Análisis Ejecutivo (F2) ─────────────────────────────────────────────
+    # En desarrollo se sirve el composer determinista: es superior al qwen
+    # local, que confunde cifras, y el gate solo valida estructura, no
+    # grounding. En producción (gemma4) se activa para el pulido de prosa.
+    ejecutivo_usar_llm: bool = False
+    # En pruebas, `false` evita tapar un fallo de Gemma con el texto base:
+    # devuelve generado_por="error" + el diagnóstico crudo para poder validarlo.
+    ejecutivo_fallback: bool = True
+    # Banda ámbar de las tarjetas de cierre: alineado (>=meta) / ajustado
+    # (>=meta*0.93) / actuar (por debajo). Eje de estado PROPIO, independiente
+    # de los umbrales 90/75 de los chips — son dos ejes distintos a propósito.
+    # Calibrado contra mayo-2026 (Rubiales 95,6% → ajustado; APIAY 50,7% →
+    # actuar). Recalibrar aquí, nunca en el código.
+    kpi_cierre_ambar_pct: float = 0.93
+    # Caché TTL de los paneles caros (A4). 15 min: el reporte cambia 1 vez/día.
+    # Sin ella, cada login dispara una generación de LLM y Ollama las serializa.
+    analisis_cache_ttl_s: int = 900
+
     # ── Seguridad — cookie firmada (itsdangerous) ───────────────────────────
     secret_key: str
 

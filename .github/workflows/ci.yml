@@ -22,6 +22,13 @@ jobs:
       - run: uv run ruff check .
       - run: uv run black --check .
       - run: uv run mypy src
+      # Exporta el OpenAPI, que IMPORTA `src.main` entero. Es la red que caza
+      # un módulo que abra conexiones (Postgres, SQLite, Ollama) en tiempo de
+      # IMPORT en vez de bajo demanda: sin este paso, ese fallo aparecería en
+      # el `pre-commit` de cualquiera (el hook `gen-types-check` también
+      # importa la app) y sin VPN se colgaría intentando alcanzar el 139.
+      # Aquí falla rápido, con mensaje claro y en el PR que lo introdujo.
+      - run: uv run python scripts/export_openapi.py
       # db_prod NO se levanta a propósito: la suite usa un doble
       # (tests/fakes/prod_db_falsa.py) y jamás toca PostgreSQL. Si algún test
       # intentara conectar al servidor real, fallaría aquí — y eso es deliberado.

@@ -23,6 +23,10 @@ export default defineConfig({
         'src/main.tsx',
         'src/shared/types/**',
         'src/**/index.{ts,tsx}',
+        // Módulos de SOLO TIPOS: desaparecen al compilar, así que no hay nada
+        // que ejecutar y su 0 % es un artefacto que arrastra el umbral hacia
+        // abajo sin significar nada. Mismo criterio que `shared/types/**`.
+        'src/**/types/*Types.ts',
       ],
       thresholds: { lines: 80, branches: 80, functions: 80, statements: 80 },
     },

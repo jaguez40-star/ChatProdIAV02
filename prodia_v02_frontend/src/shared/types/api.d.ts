@@ -247,6 +247,294 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analisis/catalogo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Catálogo de entidades y colisiones de nombre
+         * @description Cardinalidad por nivel de la jerarquía ECP, lista completa de entidades por nivel, y los nombres que COLISIONAN entre niveles.
+         *
+         *     La `severidad` de cada colisión decide si el chat contrapregunta: `dura`/`media` sí, `blanda` aplica el default 'campo' con aviso.
+         */
+        get: operations["catalogo_api_v1_analisis_catalogo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analisis/densidad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Densidad temporal del dato diario
+         * @description Días con dato, huecos y racha máxima de días CONTINUOS sobre `core.fact_produccion_dia_ecp`, más un semáforo por familia estadística.
+         *
+         *     **`aplica_ecp=False` no es un error**: las vicepresidencias y las filiales no tienen grano diario ECP, así que su serie va vacía.
+         */
+        get: operations["densidad_api_v1_analisis_densidad_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analisis/huella": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Huella de datos por fact y escenario
+         * @description METADATA: cuenta FILAS, no barriles. Muestra en qué facts estructurados vive una entidad y con qué escenarios.
+         *
+         *     No consulta `fact_tabla_hoja` (P50/DPP/Whatsapp): son hojas derivadas.
+         */
+        get: operations["huella_api_v1_analisis_huella_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analisis/cobertura": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cobertura del reporte por hoja
+         * @description Todas las hojas del reporte agrupadas en 5 categorías. La métrica es el nº de REPORTES (`COUNT DISTINCT reporte_id`), **no** la suma de filas insertadas: esa sobre-cuenta ~26x por los upserts idempotentes.
+         *
+         *     Con `entidad`, añade en cuántos reportes aparece esa entidad por hoja.
+         */
+        get: operations["cobertura_api_v1_analisis_cobertura_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analisis/desempeno": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Desempeño del mes: REAL vs PPTO, curva diaria y ritmo del año
+         * @description KPIs mensuales por producto, curva diaria y producción mensual del año para la entidad y el periodo resueltos.
+         *
+         *     **Los KPIs salen 100 % del fact MENSUAL**: día y mes usan medidas distintas para algunos productos (BLANCOS difiere ~2x), así que la curva diaria sirve solo para la forma, nunca para el cumplimiento.
+         *
+         *     **`cumplimiento: null` no es 0 %**: significa que el producto no tiene meta en el periodo. Los campos que producen SIN presupuesto se declaran en `campos_sin_meta` en vez de inventarles una.
+         *
+         *     **`periodo_ok: false`** indica que el periodo pedido no está soportado (solo mes: 'mayo', 'mayo 2026', 'mes pasado') y se sirvió el último mes con dato.
+         */
+        get: operations["desempeno_api_v1_analisis_desempeno_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analisis/desempeno_insight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Titular ejecutivo: chips, curva de crudo y lectura
+         * @description Cumplimiento por producto con su chip de estado, curva diaria de crudo con el valle anotado, descomposicion del gap del producto mas bajo y pace de cierre.
+         *
+         *     Con `entidad`, el valle se explica POR esa entidad usando el comentario que ella (o su grupo) reporto: la atribucion declara SIEMPRE quien lo reporto de verdad. Sin `entidad`, se lista la tabla global de eventos.
+         *
+         *     La prosa la redacta el LLM solo si `EJECUTIVO_USAR_LLM=true`; si no, se compone de forma determinista. `meta.generado_por` lo declara.
+         */
+        get: operations["desempeno_insight_api_v1_analisis_desempeno_insight_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analisis/ejecutivo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Analisis Ejecutivo multi-seccion
+         * @description Tarjetas KPI de cierre, focos por producto (orden fijo Crudo-Gas-Blancos), gap RECONCILIADO por campo, valle, pace, flags y las 4 secciones ejecutivas.
+         *
+         *     **El composer determinista es el entregable por defecto**: las 4 secciones nunca vienen vacias. El LLM solo pule la prosa cuando `EJECUTIVO_USAR_LLM=true`, y `meta.generado_por` declara cual se uso.
+         *
+         *     `pulir=false` salta el pulido del LLM (lo usa el motor conversacional, que descarta la prosa y no debe esperar 180 s por ella).
+         *
+         *     Cacheado 15 min (A4): sin esa cache, cada peticion re-invocaria al LLM y las generaciones se encolarian hasta reventar el timeout.
+         */
+        get: operations["ejecutivo_api_v1_analisis_ejecutivo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analisis/tendencia_filial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tendencia de UNA filial: proyeccion de cierre vs su promedio 2026
+         * @description Panel exclusivo de una filial. Las filiales NO tienen presupuesto, asi que la referencia es su PROPIA historia del ano: el mes en curso se lleva a proyeccion de cierre y se compara contra el promedio mensual de 2026.
+         *
+         *     `sin_tendencia: true` significa que no hay meses completos previos que sostengan el promedio: se declara en vez de mostrar una variacion sin base.
+         */
+        get: operations["tendencia_filial_api_v1_analisis_tendencia_filial_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analisis/president": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tarjeta P50: compromiso corporativo por producto
+         * @description Medidas de la hoja REPORTE_PRESIDENT en escala **kbpe corporativa**, que NO es la del fact diario. Aplicarle la conversion de MSCF daria un valor mil veces menor sin ningun error visible (A5).
+         *
+         *     El endpoint es AGNOSTICO a la referencia: entrega todas las medidas y el cumplimiento vs P50; que semaforo usar lo decide el frontend.
+         *
+         *     Sin `periodo` toma el reporte mas reciente que tenga la hoja, ordenando por FECHA -- el `reporte_id` es un serial por orden de ingesta y no es cronologico.
+         */
+        get: operations["president_api_v1_analisis_president_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ebitda/unificado-waterfall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Waterfall económico: Ingresos → EBITDA → EBIT → NOPAT
+         * @description 18 componentes en orden fijo, en kUSD y en USD/BI, para el periodo y el ámbito indicados.
+         *
+         *     Sin `year`/`month` se alinea con el último mes con REAL de la BD de producción, para que el waterfall y el resto del panel hablen del mismo periodo.
+         *
+         *     `entidad` admite varios valores separados por `|`: un foco agrupa varios campos.
+         *
+         *     Solo aplica a **crudo** (variante `_a` de la BD operacional).
+         */
+        get: operations["unificado_waterfall_api_v1_ebitda_unificado_waterfall_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/diferidas/frecuencia": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Diferidas históricas por causa: Pareto, tendencia e impacto
+         * @description Frecuencia de causas de producción diferida para una entidad, medida en **INCIDENTES** (no en días).
+         *
+         *     El grano de la tabla es día-pozo: sin colapsar por evento, uno de 30 días contaría 30 veces y el Pareto mediría duración en vez de frecuencia.
+         *
+         *     Bloques: `pareto` (grupos de causa por año), `tendencia` (solo los tipos que EMPEORARON en 2025 vs 2024), `pozos_por_grupo` e `impacto` (volumen perdido por causa, crudo y gas).
+         *
+         *     Responde **siempre 200**: si falta la BD, devuelve `sin_datos` con el motivo.
+         */
+        get: operations["frecuencia_api_v1_diferidas_frecuencia_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mantenimientos/eventos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Eventos de servicio a pozo que solapan el mes analizado
+         * @description Eventos del archivo Eventos_OW que **solapan** el mes indicado.
+         *
+         *     El criterio es el solape con el mes, **no** la vigencia contra hoy: el archivo es un snapshot cuyo grueso ya cerró, así que filtrar contra la fecha actual dejaría 3 eventos en toda la compañía frente a los 2.741 que tiene el mes analizado.
+         *
+         *     Un evento sin fecha de cierre está **ABIERTO**, no es una fila inválida: son el 48 % del archivo y son justamente los que siguen corriendo. Se listan primero.
+         *
+         *     Responde **siempre 200**: si falta el archivo o el periodo no es legible, devuelve `sin_datos` con el motivo.
+         */
+        get: operations["eventos_api_v1_mantenimientos_eventos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -282,37 +570,145 @@ export interface components {
              */
             meses: components["schemas"]["MesArbolOut"][];
         };
-        /**
-         * CoberturaOut
-         * @description Cuántos registros aportó cada reporte a cada fact — diagnóstico de ingesta.
-         */
-        CoberturaOut: {
+        /** CardinalidadOut */
+        CardinalidadOut: {
             /**
-             * Reporte Id
-             * @description Id del reporte.
-             * @example 1042
+             * Nivel
+             * @description Nivel de la jerarquía.
+             * @example campo
              */
-            reporte_id: number;
+            nivel: string;
             /**
-             * Tipo Archivo
-             * @description Tipo de archivo origen.
+             * N
+             * @description Entidades distintas en ese nivel.
+             * @example 128
              */
-            tipo_archivo?: string | null;
-            /**
-             * Ecp Mes
-             * @description Filas en `fact_produccion_mes_ecp`.
-             */
-            ecp_mes: number;
-            /**
-             * Ecp Dia
-             * @description Filas en `fact_produccion_dia_ecp`.
-             */
-            ecp_dia: number;
+            n: number;
+        };
+        /** CatalogoOut */
+        CatalogoOut: {
+            /** Cardinalidad */
+            cardinalidad: components["schemas"]["CardinalidadOut"][];
+            /** Productos Validos */
+            productos_validos: components["schemas"]["ProductoValidoOut"][];
+            /** Colisiones */
+            colisiones: components["schemas"]["ColisionOut"][];
+            resumen_colisiones: components["schemas"]["ResumenColisionesOut"];
             /**
              * Filiales
-             * @description Filas en `fact_produccion_diaria`.
+             * @description Empresas filiales (rama B).
              */
-            filiales: number;
+            filiales: string[];
+            /**
+             * Entidades Por Nivel
+             * @description Lista completa por nivel, para el explorador.
+             */
+            entidades_por_nivel: {
+                [key: string]: string[];
+            };
+        };
+        /** CategoriaCoberturaOut */
+        CategoriaCoberturaOut: {
+            /** Categoria */
+            categoria: string;
+            /** Hojas */
+            hojas: components["schemas"]["HojaCoberturaOut"][];
+        };
+        /**
+         * ColisionOut
+         * @description Un nombre que existe en más de un nivel de la jerarquía.
+         *
+         *     La severidad decide si el chat contrapregunta: `dura`/`media` sí; `blanda`
+         *     aplica el default 'campo' con aviso.
+         */
+        ColisionOut: {
+            /**
+             * Nombre
+             * @description Nombre en conflicto.
+             * @example RUBIALES
+             */
+            nombre: string;
+            /**
+             * Niveles
+             * @description Niveles donde aparece.
+             */
+            niveles: string[];
+            /**
+             * N Niveles
+             * @description Cuántos niveles lo comparten.
+             */
+            n_niveles: number;
+            /**
+             * Severidad
+             * @description dura | media | blanda.
+             * @enum {string}
+             */
+            severidad: "dura" | "media" | "blanda";
+        };
+        /**
+         * ComponenteOut
+         * @description Una barra del waterfall.
+         *
+         *     `type` distingue las barras ACUMULADAS (Ingresos, EBITDA, EBIT, NOPAT) de
+         *     los movimientos que las conectan. El frontend las pinta distinto: un total
+         *     arranca desde cero, un delta desde donde quedó el anterior.
+         */
+        ComponenteOut: {
+            /**
+             * Key
+             * @description Clave estable.
+             * @example ebitda
+             */
+            key: string;
+            /**
+             * Label
+             * @description Etiqueta legible.
+             * @example EBITDA
+             */
+            label: string;
+            /**
+             * Value Kusd
+             * @description Valor en miles de USD, con signo.
+             */
+            value_kusd: number;
+            /**
+             * Value Usd Bl
+             * @description USD por barril. 0 si no hay barriles en el periodo.
+             */
+            value_usd_bl: number;
+            /**
+             * Type
+             * @description total | delta.
+             * @enum {string}
+             */
+            type: "total" | "delta";
+        };
+        /** DensidadOut */
+        DensidadOut: {
+            /** Entidad */
+            entidad?: string | null;
+            /**
+             * Aplica Ecp
+             * @description False si la entidad no tiene grano diario ECP (vicepresidencias y filiales no lo tienen): la serie va vacía y no es un error.
+             * @default true
+             */
+            aplica_ecp: boolean;
+            /**
+             * Dias
+             * @default []
+             */
+            dias: components["schemas"]["DiaDensidadOut"][];
+            /**
+             * Por Mes
+             * @default []
+             */
+            por_mes: components["schemas"]["MesDensidadOut"][];
+            resumen: components["schemas"]["ResumenDensidadOut"];
+            /**
+             * Semaforo
+             * @default []
+             */
+            semaforo: components["schemas"]["FamiliaSemaforoOut"][];
         };
         /**
          * DiaArbolOut
@@ -343,6 +739,43 @@ export interface components {
              * @example Reporte_Produccion_2026-08-15.xlsm
              */
             archivo?: string | null;
+        };
+        /** DiaDensidadOut */
+        DiaDensidadOut: {
+            /**
+             * Fecha
+             * @description Fecha ISO.
+             * @example 2026-05-17
+             */
+            fecha: string;
+            /**
+             * Filas
+             * @description Registros de ese día.
+             */
+            filas: number;
+            /**
+             * Fuentes
+             * @description Fuentes distintas que reportaron.
+             */
+            fuentes: number;
+        };
+        /**
+         * FamiliaSemaforoOut
+         * @description Una de las 5 familias estadísticas y si el dato disponible la soporta.
+         */
+        FamiliaSemaforoOut: {
+            /** Familia */
+            familia: string;
+            /**
+             * Nivel
+             * @enum {string}
+             */
+            nivel: "verde" | "amarillo" | "rojo";
+            /**
+             * Necesita Continuidad
+             * @description True si depende de la racha de días continuos.
+             */
+            necesita_continuidad: boolean;
         };
         /**
          * FilaTablaOut
@@ -378,6 +811,23 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HojaCoberturaOut */
+        HojaCoberturaOut: {
+            /** Hoja */
+            hoja: string;
+            /** Categoria */
+            categoria: string;
+            /**
+             * Reportes Total
+             * @description Nº de REPORTES donde aparece la hoja (COUNT DISTINCT reporte_id). NO es la suma de filas insertadas: esa sobre-cuenta ~26x.
+             */
+            reportes_total: number;
+            /**
+             * Reportes Entidad
+             * @description Reportes donde aparece la ENTIDAD (solo si se filtró).
+             */
+            reportes_entidad?: number | null;
+        };
         /** HojaReporteOut */
         HojaReporteOut: {
             /**
@@ -408,6 +858,21 @@ export interface components {
              * @description Hojas del reporte con sus tablas.
              */
             hojas: components["schemas"]["HojaReporteOut"][];
+        };
+        /** HuellaOut */
+        HuellaOut: {
+            /** Entidad */
+            entidad?: string | null;
+            /**
+             * Encontrada
+             * @default true
+             */
+            encontrada: boolean;
+            /**
+             * Series
+             * @default []
+             */
+            series: components["schemas"]["SerieHuellaOut"][];
         };
         /**
          * LoginRequest
@@ -497,6 +962,54 @@ export interface components {
              */
             dias: components["schemas"]["DiaArbolOut"][];
         };
+        /** MesDensidadOut */
+        MesDensidadOut: {
+            /** Anio */
+            anio: number;
+            /** Mes */
+            mes: number;
+            /** Mes Nombre */
+            mes_nombre: string;
+            /** Dias Con Data */
+            dias_con_data: number;
+            /** Dias Del Mes */
+            dias_del_mes: number;
+            /**
+             * Huecos
+             * @description Días del mes SIN dato.
+             */
+            huecos: number;
+            /**
+             * Rango
+             * @description [primer día, último día] con dato.
+             */
+            rango: string[];
+        };
+        /** MetaEbitdaOut */
+        MetaEbitdaOut: {
+            /** Year */
+            year: number;
+            /** Month */
+            month: number;
+            /**
+             * Nivel
+             * @description global | activo | campo.
+             */
+            nivel: string;
+            /** Entidad */
+            entidad?: string | null;
+            /**
+             * Producto
+             * @description El waterfall económico solo aplica a crudo (variante _a).
+             * @default CRUDO
+             */
+            producto: string;
+            /**
+             * Unidad Default
+             * @default USD/BI
+             */
+            unidad_default: string;
+        };
         /** PermissionGroupOut */
         PermissionGroupOut: {
             /** Id */
@@ -524,6 +1037,27 @@ export interface components {
              * @description Volumen estimado sumado. `None` si el dato no es finito (A6).
              */
             vol_estimado?: number | null;
+        };
+        /**
+         * ProductoValidoOut
+         * @description Producto del conversacional y su valor en `dim_tipo_producto`.
+         *
+         *     `agua` NO existe en `dim_tipo_producto` (solo CRUDO/GAS/BLANCOS): por eso
+         *     no aparece aquí y el slot-filling la rechaza.
+         */
+        ProductoValidoOut: {
+            /**
+             * Termino
+             * @description Término de negocio.
+             * @example aceite
+             */
+            termino: string;
+            /**
+             * Dim
+             * @description Valor en dim_tipo_producto.
+             * @example CRUDO
+             */
+            dim: string;
         };
         /** ReporteOut */
         ReporteOut: {
@@ -554,6 +1088,71 @@ export interface components {
              * @description Nivel de detalle del reporte.
              */
             nivel_detalle?: string | null;
+        };
+        /** ResumenColisionesOut */
+        ResumenColisionesOut: {
+            /**
+             * Dura
+             * @default 0
+             */
+            dura: number;
+            /**
+             * Media
+             * @default 0
+             */
+            media: number;
+            /**
+             * Blanda
+             * @default 0
+             */
+            blanda: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+        };
+        /** ResumenDensidadOut */
+        ResumenDensidadOut: {
+            /** Total Dias */
+            total_dias: number;
+            /**
+             * Rango
+             * @description [primera, última] fecha global.
+             */
+            rango: (string | null)[];
+            /** Huecos Totales */
+            huecos_totales: number;
+            /**
+             * Racha Maxima
+             * @description Días CONTINUOS consecutivos con dato (define el semáforo).
+             */
+            racha_maxima: number;
+        };
+        /**
+         * SerieHuellaOut
+         * @description METADATA: cuenta FILAS, no barriles. Muestra en qué facts vive la entidad.
+         */
+        SerieHuellaOut: {
+            /**
+             * Fuente
+             * @description Etiqueta legible.
+             * @example REAL diario
+             */
+            fuente: string;
+            /**
+             * Grupo
+             * @description dia | mes | programa.
+             */
+            grupo: string;
+            /** Filas */
+            filas: number;
+            /**
+             * Hoja
+             * @description Hoja de origen.
+             * @example BDP_datos_dia
+             */
+            hoja: string;
         };
         /**
          * SessionTimeoutOut
@@ -727,6 +1326,63 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WaterfallOut */
+        WaterfallOut: {
+            /** Components */
+            components: components["schemas"]["ComponenteOut"][];
+            /**
+             * Total Bls
+             * @description Barriles del periodo y ámbito.
+             */
+            total_bls: number;
+            meta: components["schemas"]["MetaEbitdaOut"];
+        };
+        /** CoberturaOut */
+        src__features__analisis__schemas__CoberturaOut: {
+            /** Entidad */
+            entidad?: string | null;
+            /** Total Hojas */
+            total_hojas: number;
+            /** Categorias */
+            categorias: components["schemas"]["CategoriaCoberturaOut"][];
+            /**
+             * Hojas Con Entidad
+             * @description Cuántas hojas contienen la entidad (solo si se filtró).
+             */
+            hojas_con_entidad?: number | null;
+        };
+        /**
+         * CoberturaOut
+         * @description Cuántos registros aportó cada reporte a cada fact — diagnóstico de ingesta.
+         */
+        src__features__tablas__schemas__CoberturaOut: {
+            /**
+             * Reporte Id
+             * @description Id del reporte.
+             * @example 1042
+             */
+            reporte_id: number;
+            /**
+             * Tipo Archivo
+             * @description Tipo de archivo origen.
+             */
+            tipo_archivo?: string | null;
+            /**
+             * Ecp Mes
+             * @description Filas en `fact_produccion_mes_ecp`.
+             */
+            ecp_mes: number;
+            /**
+             * Ecp Dia
+             * @description Filas en `fact_produccion_dia_ecp`.
+             */
+            ecp_dia: number;
+            /**
+             * Filiales
+             * @description Filas en `fact_produccion_diaria`.
+             */
+            filiales: number;
         };
     };
     responses: never;
@@ -1139,7 +1795,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CoberturaOut"][];
+                    "application/json": components["schemas"]["src__features__tablas__schemas__CoberturaOut"][];
                 };
             };
             /** @description No autenticado — falta la cookie de sesión o es inválida */
@@ -1201,6 +1857,582 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    catalogo_api_v1_analisis_catalogo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogoOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    densidad_api_v1_analisis_densidad_get: {
+        parameters: {
+            query?: {
+                /** @description Filtra por entidad (fuente/campo/área/activo/gerencia). */
+                entidad?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DensidadOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    huella_api_v1_analisis_huella_get: {
+        parameters: {
+            query?: {
+                /** @description Sin entidad, panorama global. */
+                entidad?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HuellaOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cobertura_api_v1_analisis_cobertura_get: {
+        parameters: {
+            query?: {
+                /** @description Filtra la presencia por entidad. */
+                entidad?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["src__features__analisis__schemas__CoberturaOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    desempeno_api_v1_analisis_desempeno_get: {
+        parameters: {
+            query?: {
+                /** @description Entidad a analizar. */
+                entidad?: string | null;
+                /** @description Nivel de la entidad: campo | activo | fuente | gerencia | operador | vicepresidencia. Sin nivel se resuelve por OR-unión. */
+                nivel?: string | null;
+                /** @description Periodo en texto libre. Solo mes en v1. */
+                periodo?: string | null;
+                /** @description ecp | filiales. Filiales cambia fuente Y reglas. */
+                segmento?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    desempeno_insight_api_v1_analisis_desempeno_insight_get: {
+        parameters: {
+            query?: {
+                /** @description Entidad a analizar. */
+                entidad?: string | null;
+                /** @description Nivel de la entidad. */
+                nivel?: string | null;
+                /** @description Periodo (solo mes en v1). */
+                periodo?: string | null;
+                /** @description ecp | filiales. */
+                segmento?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ejecutivo_api_v1_analisis_ejecutivo_get: {
+        parameters: {
+            query?: {
+                /** @description Entidad a analizar. */
+                entidad?: string | null;
+                /** @description Nivel de la entidad. */
+                nivel?: string | null;
+                /** @description Periodo (solo mes en v1). */
+                periodo?: string | null;
+                /** @description False = sin pulido del LLM. */
+                pulir?: boolean;
+                /** @description ecp | filiales. */
+                segmento?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    tendencia_filial_api_v1_analisis_tendencia_filial_get: {
+        parameters: {
+            query: {
+                /** @description Nombre de la filial. */
+                empresa: string;
+                /** @description Reservado (v1 usa el ultimo mes). */
+                periodo?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    president_api_v1_analisis_president_get: {
+        parameters: {
+            query?: {
+                /** @description Periodo YYYY-MM. */
+                periodo?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unificado_waterfall_api_v1_ebitda_unificado_waterfall_get: {
+        parameters: {
+            query?: {
+                /** @description Año. Sin él, el último con REAL. */
+                year?: number | null;
+                /** @description Mes 1-12. */
+                month?: number | null;
+                /** @description global | activo | campo. */
+                nivel?: string | null;
+                /** @description Entidad(es), separadas por `|` si son varias. */
+                entidad?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaterfallOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description `OPS_DATABASE_URL` sin configurar, o la BD operacional ROBUSTEZ no está disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    frecuencia_api_v1_diferidas_frecuencia_get: {
+        parameters: {
+            query?: {
+                /** @description Entidad analizada. */
+                entidad?: string | null;
+                /** @description Si es `activo`, expande a sus campos. */
+                nivel?: string | null;
+                /** @description Campos explícitos, separados por `|`. */
+                campos?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    eventos_api_v1_mantenimientos_eventos_get: {
+        parameters: {
+            query?: {
+                /** @description Entidad analizada. */
+                entidad?: string | null;
+                /** @description Si es `activo`, expande a sus campos. */
+                nivel?: string | null;
+                /** @description Campos explícitos, separados por `|`. */
+                campos?: string | null;
+                /** @description `YYYY-MM` o `Mayo 2026`. */
+                periodo?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

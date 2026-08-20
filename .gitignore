@@ -22,6 +22,12 @@ coverage/
 prodia_v02_backend/data/*.db
 prodia_v02_backend/data/*.db-wal
 prodia_v02_backend/data/*.db-shm
+# Datos operativos de F2 (Análisis): ECP_DIFERIDAS.db pesa 954 MB y
+# Eventos_OW.xlsx es un snapshot que se refresca por fuera del repo. Ambos se
+# copian al desplegar y sus rutas se configuran por .env (DIFERIDAS_DB_PATH /
+# EVENTOS_OW_PATH). Los tests NO los usan: montan ficheros sintéticos.
+prodia_v02_backend/data/*.xlsx
+prodia_v02_backend/data/*.xlsm
 prodia_v02_backend/openapi.json
 
 # ── Artefactos de deploy (patrón Robustez V02) ────────────────────────────────
@@ -35,3 +41,6 @@ prodia_v02_backend/openapi.json
 !.vscode/extensions.json
 .DS_Store
 Thumbs.db
+
+# Artefacto incremental de tsc: cambia en cada build, no aporta al repo.
+*.tsbuildinfo

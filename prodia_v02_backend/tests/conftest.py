@@ -194,3 +194,115 @@ def patch_prod_db() -> Any:
     yield _registrar
 
     app.dependency_overrides.pop(get_prod_db, None)
+
+
+# ── Fuentes de datos de F2 (Análisis) ───────────────────────────────────────
+#
+# Mismo principio que `patch_prod_db`: NINGÚN test sale a la red ni abre los
+# ficheros reales. La BD de diferidas pesa 954 MB y el LLM vive en otro host —
+# tocarlos haría la suite lenta, frágil y dependiente de la VPN.
+
+
+@pytest.fixture
+def patch_ops_db() -> Any:
+    """Sustituye la sesión de `db_ops` (PostgreSQL `robustez_v02`) por un doble.
+
+    Gemelo de `patch_prod_db` y por el mismo motivo: `db_ops` construye su
+    engine con `@lru_cache`, así que parchear settings no bastaría.
+    """
+    from src.main import app
+    from src.shared.db_ops import get_ops_db
+    from tests.fakes.prod_db_falsa import SesionProdFalsa
+
+    def _registrar(
+        datos: dict[str, Any] | None = None, fallar: bool = False
+    ) -> SesionProdFalsa:
+        sesion = SesionProdFalsa(datos=datos, fallar=fallar)
+
+        def _override() -> Any:
+            yield sesion
+
+        app.dependency_overrides[get_ops_db] = _override
+        return sesion
+
+    yield _registrar
+
+    app.dependency_overrides.pop(get_ops_db, None)
+
+
+@pytest.fixture
+def diferidas_db_falsa(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """SQLite temporal con la forma REAL de `AVM_DATADIF` (18 columnas).
+
+    Se replican las columnas que el endpoint consulta, incluidas
+    `ACEITE_PERDIDO`/`GAS_PERDIDO`: la BD real las tiene y el bloque `impacto`
+    depende de ellas. Un fixture con menos columnas dejaría pasar un portado
+    incompleto.
+
+    Devuelve una factoría `diferidas_db_falsa(filas)` que crea el fichero y
+    apunta `DIFERIDAS_DB_PATH` a él.
+    """
+    import sqlite3
+
+    from src.core.config import get_settings
+
+    def _crear(filas: list[tuple[Any, ...]] | None = None) -> Any:
+        ruta = tmp_path / "diferidas_test.db"
+        conexion = sqlite3.connect(ruta)
+        conexion.execute("""
+            CREATE TABLE AVM_DATADIF (
+                id_row INTEGER, VICE TEXT, GERENCIA TEXT, AREA TEXT, CAMPO TEXT,
+                EVENT_DATE TEXT, COMPLETION TEXT, INI_DATE TEXT, END_DATE TEXT,
+                CAUSE_NIVEL2 TEXT, CAUSE_NIVEL3 TEXT, CAUSE_NIVEL4 TEXT,
+                CAUSE_NIVEL5 TEXT, CAUSE TEXT, COMENTARIO TEXT,
+                ACEITE_PERDIDO REAL, AGUA_PERDIDO REAL, GAS_PERDIDO REAL
+            )
+            """)
+        if filas:
+            conexion.executemany(
+                "INSERT INTO AVM_DATADIF VALUES (" + ",".join("?" * 18) + ")", filas
+            )
+        conexion.commit()
+        conexion.close()
+
+        monkeypatch.setenv("DIFERIDAS_DB_PATH", str(ruta))
+        get_settings.cache_clear()
+        return ruta
+
+    yield _crear
+
+    # La caché de settings es global al proceso: sin limpiarla, el siguiente
+    # test heredaría la ruta temporal ya borrada.
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+def stub_llm(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Sustituye la llamada a Ollama por una respuesta fija.
+
+    Se parchea `_invocar_una_vez` y no `invocar` a propósito: así la política
+    de reintento real (T4 — reintentar solo ante `generacion_abortada`) sigue
+    ejecutándose y queda cubierta por los tests.
+    """
+    from src.shared import llm_client
+
+    def _registrar(respuestas: list[Any]) -> list[int]:
+        """`respuestas` se consumen en orden; la última se repite si hace falta."""
+        llamadas = [0]
+        pendientes = list(respuestas)
+
+        def _falso(
+            prompt: str, timeout: int, diag: dict[str, Any] | None
+        ) -> Any | None:
+            llamadas[0] += 1
+            valor = pendientes.pop(0) if len(pendientes) > 1 else pendientes[0]
+            if isinstance(valor, str) and diag is not None:
+                # Una cadena representa un fallo: se usa como `status` del diag.
+                diag["status"] = valor
+                return None
+            return valor
+
+        monkeypatch.setattr(llm_client, "_invocar_una_vez", _falso)
+        return llamadas
+
+    return _registrar

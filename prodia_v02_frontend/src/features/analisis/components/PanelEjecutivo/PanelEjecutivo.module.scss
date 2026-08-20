@@ -1,0 +1,40 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.panel { display: flex; flex-direction: column; gap: $pv-space-4; }
+.encabezado { display: flex; flex-direction: column; gap: $pv-space-1; }
+.titulo { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.subtitulo { display: flex; gap: $pv-space-2; align-items: center; margin: 0; font-size: 0.85rem; color: $pv-muted; }
+.insignia { padding: 1px 8px; font-size: 0.68rem; color: $pv-primary; background: $pv-lime-soft; border-radius: 999px; }
+.aviso { padding: $pv-space-4; margin: 0; font-size: 0.9rem; color: $pv-muted; text-align: center; }
+.tarjetas { display: flex; flex-wrap: wrap; gap: $pv-space-3; }
+
+.tarjeta {
+  display: flex; flex: 1 1 220px; flex-direction: column; gap: $pv-space-2;
+  padding: $pv-space-3; background: $pv-white; border: 1px solid $pv-border;
+  border-left: 3px solid $pv-border; border-radius: $pv-radius-md; box-shadow: $pv-shadow-card;
+}
+
+.estado_alineado { border-left-color: $pv-pos; }
+.estado_ajustado { border-left-color: #d98324; }
+.estado_actuar { border-left-color: $pv-neg; }
+.estado_neutro { border-left-color: $pv-border; }
+
+.tarjetaCabecera { display: flex; gap: $pv-space-2; align-items: center; justify-content: space-between; }
+.tarjetaNombre { margin: 0; font-size: 0.75rem; font-weight: 600; color: $pv-muted; text-transform: uppercase; letter-spacing: 0.04em; }
+.chip { padding: 1px 8px; font-size: 0.68rem; font-weight: 600; background: $pv-bg; border-radius: 999px; }
+.tarjetaValor { margin: 0; font-size: 1.3rem; font-weight: 700; color: $pv-primary; }
+.tarjetaUnidad { font-size: 0.75rem; font-weight: 400; color: $pv-muted; }
+.tarjetaMeta, .tarjetaRitmo { margin: 0; font-size: 0.78rem; color: $pv-muted; }
+.tarjetaSinMeta { margin: 0; font-size: 0.78rem; font-style: italic; color: $pv-muted; }
+
+.barra {
+  height: 6px; overflow: hidden; background: $pv-bg; border-radius: 999px;
+  span { display: block; height: 100%; background: $pv-primary; }
+}
+
+.secciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: $pv-space-3; }
+.seccion { padding: $pv-space-3; background: $pv-panel; border: 1px solid $pv-border; border-radius: $pv-radius-md; }
+.tituloSeccion { margin: 0 0 $pv-space-2; font-size: 0.9rem; font-weight: 600; }
+.listaFrases { padding-left: $pv-space-4; margin: 0; font-size: 0.82rem; line-height: 1.6; }
+.focos { display: flex; flex-direction: column; gap: $pv-space-2; }
+.nota { font-size: 0.78rem; color: $pv-muted; }

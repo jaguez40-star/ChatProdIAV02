@@ -1,0 +1,166 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-3;
+}
+
+.pestanas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $pv-space-1;
+  border-bottom: 1px solid $pv-border;
+}
+
+.pestana,
+.pestanaActiva {
+  padding: $pv-space-2 $pv-space-3;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: $pv-muted;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+}
+
+.pestanaActiva {
+  font-weight: 600;
+  color: $pv-primary;
+  border-bottom-color: $pv-primary;
+}
+
+.contenido {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-3;
+}
+
+.tarjetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $pv-space-2;
+}
+
+.tarjeta {
+  display: flex;
+  flex: 1 1 100px;
+  flex-direction: column;
+  gap: $pv-space-1;
+  align-items: center;
+  padding: $pv-space-3 $pv-space-2;
+  background: $pv-white;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+}
+
+.tarjetaValor {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: $pv-primary;
+}
+
+.tarjetaNivel {
+  font-size: 0.7rem;
+  color: $pv-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.nota {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: $pv-muted;
+}
+
+.aviso {
+  padding: $pv-space-3;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  background: $pv-lime-soft;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-sm;
+}
+
+.resumenLinea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $pv-space-4;
+  font-size: 0.85rem;
+}
+
+.tabla {
+  width: 100%;
+  font-size: 0.82rem;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: $pv-space-2;
+    text-align: left;
+    border-bottom: 1px solid $pv-border;
+  }
+
+  th {
+    font-size: 0.72rem;
+    color: $pv-muted;
+    text-transform: uppercase;
+  }
+}
+
+.celdaTenue {
+  color: $pv-muted;
+}
+
+.sev_dura,
+.sev_media,
+.sev_blanda {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+.sev_dura {
+  color: #7a2020;
+  background: #fde8e8;
+}
+
+.sev_media {
+  color: #7a5320;
+  background: #fdf3e2;
+}
+
+.sev_blanda {
+  color: $pv-muted;
+  background: $pv-bg;
+}
+
+.listaSemaforo {
+  padding: 0;
+  margin: 0;
+  font-size: 0.85rem;
+  list-style: none;
+
+  li {
+    display: flex;
+    gap: $pv-space-2;
+    align-items: center;
+    padding: 2px 0;
+  }
+}
+
+.punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}

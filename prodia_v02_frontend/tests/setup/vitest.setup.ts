@@ -24,6 +24,24 @@ class ResizeObserverMock {
 
 globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
+// jsdom no implementa URL.createObjectURL, y Plotly lo invoca al CARGARSE el
+// módulo (no al renderizar). Sin este polyfill el fallo no es un test rojo:
+// es `TypeError: window.URL.createObjectURL is not a function` durante la
+// importación, que vitest reporta como "Failed Suites 1 · Tests: no tests"
+// — el ARCHIVO ENTERO no llega a ejecutarse. Con `pool: 'forks'` +
+// `singleFork: true` (vitest.config.ts) eso contamina la corrida completa y
+// la cobertura ni se calcula.
+//
+// Verificado (AP-4 del plan F2): sin el polyfill, renderizar un gráfico da
+// Failed Suite; con él, pasa en ~140 ms. Los avisos residuales
+// `Not implemented: HTMLCanvasElement.prototype.getContext` que jsdom emite
+// después son RUIDO, no fallo: Plotly detecta la ausencia de canvas y sigue.
+if (!window.URL.createObjectURL) {
+  window.URL.createObjectURL = (() =>
+    'blob:test') as unknown as typeof window.URL.createObjectURL;
+  window.URL.revokeObjectURL = (() => {}) as unknown as typeof window.URL.revokeObjectURL;
+}
+
 // jsdom no implementa matchMedia — usado indirectamente por hooks de layout.
 if (!window.matchMedia) {
   window.matchMedia = (query: string) =>

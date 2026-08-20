@@ -1,0 +1,1 @@
+export { PanelEjecutivo } from './PanelEjecutivo';

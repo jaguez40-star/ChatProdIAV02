@@ -1,0 +1,1 @@
+export { AcordeonFoco } from './AcordeonFoco';

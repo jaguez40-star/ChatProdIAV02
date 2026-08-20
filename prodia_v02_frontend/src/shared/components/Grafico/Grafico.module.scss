@@ -1,0 +1,14 @@
+@use '../../styles/tokens' as *;
+
+// Contenedor por defecto de un gráfico. El alto real lo fija la prop `alto`
+// (Plotly necesita un número, no un porcentaje); aquí solo se define el marco.
+.contenedor {
+  width: 100%;
+  padding: $pv-space-2;
+  background: $pv-white;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+
+  // Un gráfico ancho nunca debe empujar el scroll horizontal de la página.
+  overflow-x: auto;
+}

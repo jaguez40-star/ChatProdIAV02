@@ -1,0 +1,130 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-4;
+}
+
+.encabezado {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-1;
+}
+
+.titulo {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.periodo {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: $pv-muted;
+}
+
+.avisoLinea {
+  padding: $pv-space-2 $pv-space-3;
+  margin: 0;
+  font-size: 0.8rem;
+  background: $pv-lime-soft;
+  border-radius: $pv-radius-sm;
+}
+
+.aviso {
+  padding: $pv-space-4;
+  margin: 0;
+  font-size: 0.9rem;
+  text-align: center;
+  color: $pv-muted;
+}
+
+.kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $pv-space-3;
+}
+
+.kpi {
+  display: flex;
+  flex: 1 1 200px;
+  flex-direction: column;
+  gap: $pv-space-1;
+  padding: $pv-space-3;
+  background: $pv-white;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+  box-shadow: $pv-shadow-card;
+}
+
+.kpiCabecera {
+  display: flex;
+  gap: $pv-space-2;
+  align-items: center;
+}
+
+.kpiPunto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.kpiNombre {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $pv-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpiValor {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: $pv-primary;
+}
+
+.kpiMeta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: $pv-muted;
+}
+
+.kpiSinMeta {
+  margin: 0;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: $pv-muted;
+}
+
+.avisoBloque {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-2;
+  padding: $pv-space-3;
+  background: $pv-lime-soft;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.nota {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: $pv-muted;
+}
+
+.listaCampos {
+  padding-left: $pv-space-4;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
