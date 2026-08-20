@@ -1,0 +1,228 @@
+# Golden set del clasificador de grupo (Motor Q v2 · Fase 1).
+# Gate: >=90% de acierto. Se corre con run_golden.py (clasificar con log=False — H3).
+# CRECIMIENTO: toda corrección verificada de la libreta entra AQUÍ con su etiqueta
+# correcta (regresión permanente — el error no regresa). Nunca sacar un caso.
+
+# ---- jerarquizar (10) ----
+- pregunta: "¿A qué activo pertenece Cajúa?"
+  esperado: jerarquizar
+- pregunta: "¿Qué campos tiene el activo Castilla?"
+  esperado: jerarquizar
+- pregunta: "¿Qué es CPO-09?"
+  esperado: jerarquizar
+- pregunta: "¿Hocol es una filial o un activo de ECP?"
+  esperado: jerarquizar
+- pregunta: "¿De qué gerencia es el campo Rubiales?"
+  esperado: jerarquizar
+- pregunta: "¿Cuáles campos conforman el activo Apiay?"
+  esperado: jerarquizar
+- pregunta: "Muéstrame la estructura completa del activo Chichimene"
+  esperado: jerarquizar
+- pregunta: "¿Qué información hay de Rubiales?"
+  esperado: jerarquizar
+- pregunta: "¿Desde cuándo hay datos de producción de Castilla?"
+  esperado: jerarquizar
+- pregunta: "¿Cuántos días con reporte hay de Rubiales?"
+  esperado: jerarquizar
+- pregunta: "¿Cuáles son los campos con más pozos?"
+  esperado: jerarquizar
+- pregunta: "¿Qué vicepresidencia tiene más gerencias?"
+  esperado: jerarquizar
+- pregunta: "¿Cuáles son los campos más grandes?"
+  esperado: jerarquizar
+- pregunta: "¿Qué activo tiene más campos?"
+  esperado: jerarquizar
+
+# ---- cuantificar (10) ----
+- pregunta: "¿Cuánto crudo produjo Castilla?"
+  esperado: cuantificar
+- pregunta: "¿Cuál es la producción de Castilla?"
+  esperado: cuantificar
+- pregunta: "¿Qué es la producción de Castilla este mes?"
+  esperado: cuantificar
+- pregunta: "¿Cuánto acumuló Rubiales entre enero y mayo?"
+  esperado: cuantificar
+- pregunta: "Producción mes a mes de Apiay en 2026"
+  esperado: cuantificar
+- pregunta: "¿Cómo varió la producción de gas de Cusiana?"
+  esperado: cuantificar
+# R1 (2026-08-03): "¿Cuántos pozos tiene Apiay?" quedaba aquí (esperado: cuantificar) desde antes de
+# que HALLAZGO_clasificador_conteo_jerarquia.md documentara que era el bug del conteo de jerarquía
+# (misma corrección que test_capa1_conteo_jerarquia_es_jerarquizar en test_consulta_v2_clasificador.py).
+- pregunta: "¿Cuántos pozos tiene Apiay?"
+  esperado: jerarquizar
+- pregunta: "Promedio diario de crudo en Castilla en marzo"
+  esperado: cuantificar
+- pregunta: "Total de blancos de Ecopetrol en abril"
+  esperado: cuantificar
+- pregunta: "¿Qué produjo Chichimene el mes pasado?"
+  esperado: cuantificar
+
+# ---- analizar (10) ----
+- pregunta: "¿Por qué está mal Castilla?"
+  esperado: analizar
+- pregunta: "¿A qué se debe la caída de Rubiales?"
+  esperado: analizar
+- pregunta: "¿Cómo vamos contra el P50?"
+  esperado: analizar
+- pregunta: "¿Vamos a llegar a la meta este mes?"
+  esperado: analizar
+- pregunta: "¿Qué campos pesan en el gap?"
+  esperado: analizar
+# [2026-08-02] EDITADO (no es poda silenciosa — decisión explícita del usuario tras probar el
+# filtro en vivo): META\b dejó de ser ancla. Esta frase no trae entidad ni palabra de
+# vocabulario ("meta" sola no basta) → ya no cumple el criterio de dominio y pasa a
+# desconocido. Regla del usuario: "Meta debería estar acompañado del término producción para
+# que fuera de Análisis". Ver "¿Cuánto nos falta para la meta de producción?" más abajo, que
+# SÍ se queda en analizar por traer "producción" (vocabulario).
+- pregunta: "¿Cuánto nos falta para la meta?"
+  esperado: desconocido
+- pregunta: "¿Se ve recuperación en Akacias?"
+  esperado: analizar
+- pregunta: "¿Qué pasó con Cusiana esta semana?"
+  esperado: analizar
+- pregunta: "Explícame los detractores de crudo"
+  esperado: analizar
+- pregunta: "¿Cuál es la proyección de cierre de mayo?"
+  esperado: analizar
+
+# ---- trampa: sin verbo clasificable (A3) → desconocido ----
+- pregunta: "Castilla"
+  esperado: desconocido
+- pregunta: "y Cajúa?"
+  esperado: desconocido
+- pregunta: "dame Rubiales"
+  esperado: desconocido
+- pregunta: "hola"
+  esperado: desconocido
+
+# ---- OUT / fuera de dominio: regex atrapó la FORMA, el filtro rechaza el TEMA (motor_Q.md §1.2) ----
+- pregunta: "¿Cuánto es la raíz cuadrada de 2?"
+  esperado: desconocido
+- pregunta: "Dame el precio del dólar mes a mes"
+  esperado: desconocido
+- pregunta: "¿Qué información hay de Bogotá?"
+  esperado: desconocido
+- pregunta: "¿Qué es HBOMAX?"
+  esperado: desconocido
+- pregunta: "¿Se ve recuperación en el dólar?"
+  esperado: desconocido
+# OUT que la regex NO atrapa → lo decide la Capa 2 (LLM). Model-dependent (verificar paridad):
+- pregunta: "¿Cuál es la capital de Francia?"
+  esperado: desconocido
+- pregunta: "Cuéntame un chiste"
+  esperado: desconocido
+
+# ---- Guardas de NO-REGRESIÓN: dominio GLOBAL sin entidad → NO debe irse a OUT (Decisión D2) ----
+- pregunta: "¿Cuál es el gap contra el presupuesto?"
+  esperado: analizar
+- pregunta: "¿Cuánto crudo se perdió este mes?"
+  esperado: cuantificar
+
+# ---- [2026-08-02] Lote de prueba en vivo (Test Clas), calificado por el usuario (Control 3) ----
+# Disparó el hallazgo de las 4 anclas retiradas (ver patrones_grupo.yaml). Los 4 primeros casos
+# atrapan por un patrón que ANTES era ancla (META/DETRACTORES/QUE CAMPOS PESAN/CUANTOS DIAS CON
+# REPORTE) sobre un tema AJENO — deben caer a desconocido ahora que ya no se saltan el filtro.
+- pregunta: "¿Cuál es la meta de ahorro que tengo para este año?"
+  esperado: desconocido
+- pregunta: "¿Cuáles son los detractores del rendimiento académico?"
+  esperado: desconocido
+- pregunta: "¿Cuántos días con reporte hay sobre el clima en Bogotá?"
+  esperado: desconocido
+- pregunta: "¿A qué se debe el aumento de precios en la canasta familiar?"
+  esperado: desconocido
+- pregunta: "Cuéntame sobre el clima de mañana"
+  esperado: desconocido
+- pregunta: "¿Cuánto crudo tiene Cusiana este mes?"
+  esperado: cuantificar
+- pregunta: "¿Cuánto vale un barril de petróleo hoy?"
+  esperado: desconocido
+- pregunta: "¿Qué es un yacimiento?"
+  esperado: desconocido
+- pregunta: "¿Cuánto pesa la Tierra?"
+  esperado: desconocido
+
+# ---- Control: META CON vocabulario → se queda en dominio (la regla del usuario, positivo) ----
+- pregunta: "¿Cuánto nos falta para la meta de producción?"
+  esperado: analizar
+
+# ---- [2026-08-02 · certeza en 2 niveles] CAMPOS/POZOS/ACTIVOS siguen en el vocabulario (son
+# entidades centrales del modelo) pero pasaron a nivel ESTRUCTURAL: su sola presencia ya no
+# enruta — la Capa 2 confirma el contexto. Este caso deja de ser un falso positivo aceptado y
+# pasa a resolverse bien. Depende del LLM (model-dependent: verificar paridad gemma4).
+- pregunta: "¿Qué campos pesan más en la dieta mediterránea?"
+  esperado: desconocido
+
+# ---- [2026-08-02] Franja ESTRUCTURAL: la Capa 2 confirma cuando la única evidencia de dominio
+# es CAMPOS/POZOS/ACTIVOS. Los 3 casos entran a la escalada (verificado: la regex SÍ los atrapa).
+# Model-dependent — su veredicto lo emite el LLM, no la regex.
+- pregunta: "¿Cuántos pozos sépticos necesita una casa?"
+  esperado: desconocido
+
+# ⚠️ DEUDA CONOCIDA — NO-DETERMINISMO DEL LLM (hallazgo posterior al plan, mismo día). qwen2.5:3b
+# con temperature=0 NO es estable en esta frase: 5 llamadas repetidas dieron cuantificar 1/5 y
+# desconocido 4/5, todas con diag=None (respondió bien, solo que distinto cada vez). Es una
+# naturaleza DISTINTA a la deuda D5 de abajo (esa falla siempre igual; esta es intermitente —
+# puede pasar el gate una corrida y fallar la siguiente sin que nada haya cambiado). Se registra
+# con la etiqueta CORRECTA (cuantificar), nunca se omite ni se invierte. Vía de cierre: la misma
+# de D5 (afinar el prompt de Capa 2, o medir si gemma4 en 139 es más estable).
+- pregunta: "¿Cuántos campos hay en total?"
+  esperado: cuantificar
+
+# ⚠️ DEUDA CONOCIDA Y MEDIDA (D5) — ESTE CASO FALLA HOY, A PROPÓSITO ESTÁ AQUÍ.
+# El LLM (qwen2.5:3b) clasifica esta pregunta legítima de producción como 'desconocido'. Es el
+# precio de la escalada: 2 casos arreglados por 1 roto (ganancia neta +1). Se registra con su
+# etiqueta CORRECTA (analizar) para que la deuda quede VISIBLE en cada corrida del gate — NO se
+# etiqueta al revés ni se omite, eso corrompería el examen. Vías de cierre (fuera de alcance de
+# este plan): afinar el prompt de Capa 2 para que sepa que campos/pozos/activos son entidades de
+# producción, o verificar si gemma4 en 139 sí acierta.
+- pregunta: "¿Qué campos están por debajo de la meta?"
+  esperado: analizar
+
+# ---- [2026-08-02 · 2ª tanda de trampas en vivo, calificadas por el usuario (Control 3)] --------
+# 5 preguntas que reusan una FORMA o palabra real del clasificador sobre un tema AJENO. Todas
+# deben caer en desconocido. Estado tras el análisis (verificado contra el código):
+#   · caída del cabello  → regex+filtro → OUT (ya acertaba).
+#   · pozos del ajedrez   → regex+LLM (estructural) → OUT (ya acertaba; el LLM lo confirma).
+#   · campos del formulario → capa1 no atrapa → Capa 2. qwen dio JERARQUIZAR; se endureció el
+#       prompt de Capa 2 (polisemia campos/pozos/activos/cierre). MODEL-DEPENDENT: puede fallar
+#       con qwen; verificar paridad gemma4.
+#   · cómo vamos con la meta de pasos → ARREGLADO: se retiró la ancla 'COMO VAMOS' (patrones_grupo
+#       .yaml). Ahora pasa por el filtro → sin entidad ni vocabulario → OUT.
+#   · proyección de cierre de la bolsa → LÍMITE ACEPTADO (decisión del usuario 2026-08-02, opción
+#       A). 'cierre' es vocabulario FUERTE porque protege "¿Cuál es la proyección de cierre de
+#       mayo?" (arriba, analizar) de forma DETERMINISTA; "cierre de la bolsa" reusa la misma
+#       palabra. Se prefiere esa certeza a atrapar una colisión rara en un chat de producción.
+#       Queda como fallo VISIBLE del gate A PROPÓSITO — no se va a "arreglar" (misma lógica que D5).
+- pregunta: "¿A qué se debe la caída del cabello?"
+  esperado: desconocido
+- pregunta: "¿Cuántos pozos tiene el ajedrez?"
+  esperado: desconocido
+- pregunta: "¿Qué campos debo llenar en el formulario?"
+  esperado: desconocido
+- pregunta: "¿Cómo vamos con la meta de pasos diarios?"
+  esperado: desconocido
+- pregunta: "¿Cuál es la proyección de cierre de la bolsa hoy?"
+  esperado: desconocido
+
+# ---- conteo de jerarquia (R1) ----
+- pregunta: "¿Cuántos pozos tiene Castilla?"
+  esperado: jerarquizar
+- pregunta: "¿Cuántas gerencias tiene la vicepresidencia GOR?"
+  esperado: jerarquizar
+- pregunta: "¿Cuántos campos tiene la gerencia GOR?"
+  esperado: jerarquizar
+- pregunta: "¿Cuántos activos tiene Rubiales?"
+  esperado: jerarquizar
+# ---- guardas de regresion R1 (H1): "cuantos <sustantivo>" SIN verbo estructural NO es jerarquizar.
+#      Verificado 2026-08-03: el patron sin verbo se las tragaba desde precedencia_maxima.
+- pregunta: "¿Cuántos campos están por debajo de la meta?"
+  esperado: analizar
+- pregunta: "¿Cuántos campos pesan más en el gap?"
+  esperado: analizar
+- pregunta: "¿Cuántos pozos produjeron en mayo?"
+  esperado: cuantificar
+- pregunta: "¿Cuántos campos incumplieron el presupuesto?"
+  esperado: cuantificar
+- pregunta: "¿Cuántos activos están en foco?"
+  esperado: cuantificar

@@ -1,0 +1,139 @@
+# Golden set de CUANTIFICAR (Motor Q v2 · Fase 1 · N1 puntual + N2 acumulado).
+# Gate: >=90% de acierto. Se corre con run_golden_cuantificar.py (SIN LLM — el intro cordial se
+# prueba aparte, en el servidor de pruebas). NO fija cifras en bbl: la BD dev/servidor es mutable
+# (un mes que cierra las cambiaría) — valida ESTRUCTURA: nivel_temporal detectado + tipo de
+# resultado (aplica/ambiguo/rechazo_filial/sin_entidad).
+# `entidad` simula lo que maquina_q.detectar_entidad ya habría encontrado (null si no hay match).
+# CRECIMIENTO: todo caso real corregido entra AQUÍ con su etiqueta correcta (regresión permanente).
+
+# ---- N1 puntual (6): mes en curso/cerrado, varios niveles, ruta D-D5 ----
+- pregunta: "¿cuánto crudo produjo Rubiales?"
+  entidad: "RUBIALES"
+  nivel_temporal: N1
+  resultado: aplica          # sin mes -> el último disponible (mes en curso -> proyección)
+- pregunta: "¿cuánto crudo produjo Rubiales en abril?"
+  entidad: "RUBIALES"
+  nivel_temporal: N1
+  resultado: aplica          # mes cerrado -> corte "mes cerrado", no proyección
+- pregunta: "¿cuánto produjo el campo Castilla en abril?"
+  entidad: "CASTILLA"
+  nivel_temporal: N1
+  resultado: aplica
+- pregunta: "¿cuánto crudo produjo Chichimene?"
+  entidad: "CHICHIMENE"
+  nivel_temporal: N1
+  resultado: aplica          # D-D5: colisión campo/activo -> responde directo como Campo
+- pregunta: "¿cuánto produjo APIAY en abril?"
+  entidad: "APIAY"
+  nivel_temporal: N1
+  resultado: aplica          # D-D5: campo+activo con conjuntos físicos distintos -> Campo + zoom
+- pregunta: "¿cuánto produjo la gerencia GOR?"
+  entidad: "GOR"
+  nivel_temporal: N1
+  resultado: aplica          # nivel gerencia (dim_fuente.gerencia, catálogo propio de cuantificar)
+
+# ---- N2 acumulado (2) ----
+- pregunta: "¿cuánto ha producido Rubiales en lo que va del año?"
+  entidad: "RUBIALES"
+  nivel_temporal: N2
+  resultado: aplica
+- pregunta: "¿cuál es el acumulado de crudo de Castilla?"
+  entidad: "CASTILLA"
+  nivel_temporal: N2
+  resultado: aplica
+
+# ---- Rechazos y bordes (3) ----
+- pregunta: "¿cuánto ha producido Permian?"
+  entidad: "PERMIAN"
+  nivel_temporal: N1
+  resultado: rechazo_filial   # filial SIN grano ECP (sin colisión con dim_fuente) -> resuelve
+                               # directo a rama B (no pasa por "ambiguo") -> ejecutor la rechaza
+- pregunta: "¿cuánto ha producido Hocol?"
+  entidad: "HOCOL"
+  nivel_temporal: N1
+  resultado: ambiguo          # dual: operador ECP (rama A) / filial (rama B) -> colisión genuina
+- pregunta: "¿cuánto produjo Marte?"
+  entidad: null
+  nivel_temporal: N1
+  resultado: sin_entidad      # no existe en el catálogo
+
+# ---- Fase 2: GAS (2) — Cusiana/Cupiagua son focos de gas (Piedemonte) ----
+- pregunta: "¿cuánto gas produjo Cusiana en abril?"
+  entidad: "CUSIANA"
+  nivel_temporal: N1
+  producto: gas
+  resultado: aplica
+- pregunta: "¿acumulado de gas de Cusiana?"
+  entidad: "CUSIANA"
+  nivel_temporal: N2
+  producto: gas
+  resultado: aplica
+
+# ---- Fase 2: BLANCOS (2) — AF12: misma familia Piedemonte (Cupiagua reporta gas Y blancos) ----
+- pregunta: "¿cuántos blancos produjo Cupiagua en abril?"
+  entidad: "CUPIAGUA"
+  nivel_temporal: N1
+  producto: blancos
+  resultado: aplica
+- pregunta: "¿cuál es el acumulado de blancos de Cupiagua?"
+  entidad: "CUPIAGUA"
+  nivel_temporal: N2
+  producto: blancos
+  resultado: aplica
+
+# ---- Fase 2: producto que la entidad NO reporta (Castilla no produce gas — api.py:637) ----
+- pregunta: "¿cuánto gas produjo Castilla en abril?"
+  entidad: "CASTILLA"
+  nivel_temporal: N1
+  producto: gas
+  resultado: rechazo_otro
+
+# ---- Fase 3: N3 serie (2) ----
+- pregunta: "¿producción de crudo de Rubiales mes a mes?"
+  entidad: "RUBIALES"
+  nivel_temporal: N3
+  producto: crudo
+  resultado: aplica
+- pregunta: "¿serie mensual de gas de Cusiana?"
+  entidad: "CUSIANA"
+  nivel_temporal: N3
+  producto: gas
+  resultado: aplica
+
+# ---- Fase 3: N4 variación (2) ----
+- pregunta: "¿cómo varió el crudo de Rubiales mes a mes?"
+  entidad: "RUBIALES"
+  nivel_temporal: N4
+  producto: crudo
+  resultado: aplica
+- pregunta: "¿cuál fue la variación de gas de Cusiana?"
+  entidad: "CUSIANA"
+  nivel_temporal: N4
+  producto: gas
+  resultado: aplica
+
+# ---- Fase 4: referencias ≠ PPTO en N1 ----
+- pregunta: "¿cuánto crudo produjo Rubiales en abril vs el operativo?"
+  entidad: "RUBIALES"
+  nivel_temporal: N1
+  producto: crudo
+  referencia: OPERATIVO
+  resultado: aplica
+- pregunta: "¿cuánto produjo Rubiales en abril contra el contable?"
+  entidad: "RUBIALES"
+  nivel_temporal: N1
+  producto: crudo
+  referencia: CONTABLE
+  resultado: aplica
+- pregunta: "¿cómo va Rubiales en abril frente al promedio del año?"
+  entidad: "RUBIALES"
+  nivel_temporal: N1
+  producto: crudo
+  referencia: promedio_anio
+  resultado: aplica
+- pregunta: "¿cuánto produjo Rubiales vs el P50?"
+  entidad: "RUBIALES"
+  nivel_temporal: N1
+  producto: crudo
+  referencia: P50
+  resultado: rechazo_otro

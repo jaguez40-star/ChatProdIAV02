@@ -1,0 +1,35 @@
+# Golden de ANALIZAR (Motor Q v2 · Grupo 3 · Fases 1-3). Gate: >=90%.
+# Corre con run_golden_analizar.py (SIN LLM: fuerza CONSULTA_ANALIZA_LLM=false). Valida sub-intención
+# determinista (subrouter, sin BD) + estructura del cuerpo con un `_ejecutivo_fn` FAKE inyectado.
+
+# --- sub-intención (determinista, sin BD) ---
+- pregunta: "¿por qué está corto Cajúa?"
+  entidad: "CAJUA"
+  sub: causal
+- pregunta: "¿qué campos pesan en el faltante?"
+  entidad: null
+  sub: causal
+- pregunta: "¿a qué se debe el rezago de crudo?"
+  entidad: null
+  sub: causal
+- pregunta: "¿cómo vamos este mes?"
+  entidad: null
+  sub: proyeccion
+- pregunta: "¿vamos a cerrar en meta?"
+  entidad: null
+  sub: proyeccion
+- pregunta: "¿cuál es la proyección de cierre?"
+  entidad: null
+  sub: proyeccion
+- pregunta: "¿qué pasó con las diferidas?"
+  entidad: null
+  sub: diferidas
+- pregunta: "¿cuál es el EBITDA de Castilla?"
+  entidad: "CASTILLA"
+  sub: economia
+- pregunta: "¿qué mantenimientos hubo en Castilla?"
+  entidad: "CASTILLA"
+  sub: diferidas
+- pregunta: "¿cómo va la rentabilidad de Apiay?"
+  entidad: "APIAY"
+  sub: economia
