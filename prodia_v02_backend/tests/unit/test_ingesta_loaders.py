@@ -153,6 +153,26 @@ def test_produccion_dia_resuelve_las_columnas_por_nombre_no_por_posicion() -> No
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("columna", ["GRUPO1_SIGLA", "NIVEL1_SIGLA", "VICE"])
+def test_produccion_dia_reconoce_los_tres_nombres_de_la_vicepresidencia(
+    columna: str,
+) -> None:
+    """La vicepresidencia se ha llamado de tres formas distintas según el vintage del
+    reporte, y `vice_id` es NOT NULL: si el loader solo conociera un nombre, el archivo
+    de otro año reventaría al insertar —fue exactamente lo que pasó con el de 2024, que
+    usa `VICE`."""
+    repo, sesion, dims = _entorno()
+    hoja = hoja_desde_filas(
+        [["IDBDP", "FECHA", columna], [101, 20260101, "VRO"]],
+    )
+
+    cargar_produccion_dia(hoja, 1042, repo, dims)
+
+    escrita = sesion.inserciones_en("core.fact_produccion_dia_ecp")[0].parametros[0]
+    assert escrita["vice_id"] is not None
+
+
+@pytest.mark.unit
 def test_produccion_dia_siembra_fecha_y_fuente_antes_del_fact() -> None:
     """Las claves foráneas tienen que existir antes de insertar el fact."""
     repo, sesion, dims = _entorno()

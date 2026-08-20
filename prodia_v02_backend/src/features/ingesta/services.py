@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from openpyxl import load_workbook
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.logger import get_logger
 from src.features.ingesta.detector import HOJAS_RAW, tiene_raw
@@ -357,7 +358,25 @@ class IngestaService:
         self._emitir(EventoHoja(hoja=nombre_hoja, estado="procesando"))
         try:
             resultado = trabajo(libro[nombre_hoja])
+        except SQLAlchemyError:
+            # Un fallo de BD aborta la transacción entera: PostgreSQL rechaza cualquier
+            # sentencia posterior, así que ni siquiera se puede dejar constancia en la
+            # bitácora. Continuar sería fingir que se sigue trabajando mientras todo lo
+            # que venga después falla igual. Se propaga para que la transacción revierta
+            # y el evento final diga `revertido`.
+            logger.error("loader_fallo_de_bd", hoja=nombre_hoja, exc_info=True)
+            self._emitir(
+                EventoHoja(
+                    hoja=nombre_hoja,
+                    estado="error",
+                    destino=destino,
+                    detalle="Error de base de datos: la ingesta se revertirá.",
+                )
+            )
+            raise
         except Exception as excepcion:  # noqa: BLE001 — una hoja no tumba el resto
+            # Aquí el fallo es de lectura (un layout que cambió), no de la base: la
+            # transacción sigue sana y las demás hojas pueden continuar.
             logger.error(
                 "loader_fallo", hoja=nombre_hoja, error=str(excepcion), exc_info=True
             )
@@ -420,6 +439,11 @@ class IngestaService:
             self._emitir(EventoHoja(hoja=nombre_hoja, estado="procesando"))
             try:
                 resultado = extractor(libro[nombre_hoja])
+            except SQLAlchemyError:
+                # Igual que en los loaders: un fallo de BD deja la transacción abortada
+                # y no hay nada que continuar. Se propaga para revertir.
+                logger.error("extractor_fallo_de_bd", hoja=nombre_hoja, exc_info=True)
+                raise
             except Exception as excepcion:  # noqa: BLE001 — una hoja no tumba el resto
                 logger.error(
                     "extractor_fallo",

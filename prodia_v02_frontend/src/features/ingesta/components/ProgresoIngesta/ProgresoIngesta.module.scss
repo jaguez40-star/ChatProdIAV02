@@ -1,0 +1,259 @@
+@use 'sass:color';
+@use '../../../../shared/styles/tokens' as *;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-4;
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $pv-space-3;
+}
+
+.titulo {
+  display: flex;
+  align-items: center;
+  gap: $pv-space-2;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: $pv-primary;
+}
+
+.contador {
+  font-size: 0.85rem;
+  color: $pv-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.girando {
+  animation: girar 1s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Respeta a quien pidió menos movimiento: el spinner se detiene, el estado sigue siendo
+// legible por el icono y el texto.
+@media (prefers-reduced-motion: reduce) {
+  .girando {
+    animation: none;
+  }
+}
+
+.barra {
+  height: 6px;
+  border-radius: 3px;
+  background: $pv-border;
+  overflow: hidden;
+}
+
+.relleno {
+  height: 100%;
+  background: $pv-primary;
+  transition: width $pv-transition-base;
+}
+
+.pendiente {
+  display: flex;
+  align-items: center;
+  gap: $pv-space-2;
+  margin: 0;
+  font-size: 0.82rem;
+  color: $pv-muted;
+}
+
+// ── Lista de hojas ───────────────────────────────────────────────────────────
+
+.listaHojas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 420px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.hoja {
+  display: grid;
+  grid-template-columns: 18px 1fr auto 90px;
+  align-items: center;
+  gap: $pv-space-3;
+  padding: $pv-space-2 $pv-space-3;
+  border-radius: $pv-radius-sm;
+  font-size: 0.85rem;
+  background: $pv-white;
+  border: 1px solid $pv-border;
+}
+
+.nombreHoja {
+  font-weight: 500;
+  color: $pv-navy;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.estadoHoja {
+  font-size: 0.78rem;
+  color: $pv-muted;
+}
+
+.filasHoja {
+  text-align: right;
+  font-family: $pv-font-mono;
+  font-size: 0.8rem;
+  color: $pv-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.detalleHoja {
+  grid-column: 2 / -1;
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: $pv-neg;
+}
+
+.procesando {
+  border-color: $pv-primary;
+}
+
+.procesada svg {
+  color: $pv-pos;
+}
+
+// Una tabla sin filas no es un error, pero tampoco un éxito: tono neutro para que
+// destaque sobre las procesadas sin alarmar.
+.vacia {
+  background: $pv-bg;
+
+  svg {
+    color: $pv-muted;
+  }
+}
+
+.error {
+  border-color: $pv-neg;
+
+  svg {
+    color: $pv-neg;
+  }
+}
+
+// ── Resumen final ────────────────────────────────────────────────────────────
+
+.resumen {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-3;
+  padding: $pv-space-4;
+  border-radius: $pv-radius-md;
+  border-left: 4px solid;
+}
+
+.exito {
+  border-color: $pv-pos;
+  background: $pv-lime-soft;
+}
+
+.fallo {
+  border-color: $pv-neg;
+  background: #fdeeee;
+}
+
+.tituloResumen {
+  display: flex;
+  align-items: center;
+  gap: $pv-space-2;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: $pv-primary;
+
+  .fallo & {
+    color: $pv-neg;
+  }
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: $pv-space-3;
+  margin: 0;
+
+  dt {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $pv-muted;
+  }
+
+  dd {
+    margin: 2px 0 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: $pv-navy;
+  }
+}
+
+.vacias {
+  font-size: 0.85rem;
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: $pv-primary;
+  }
+
+  ul {
+    margin: $pv-space-2 0 0;
+    padding-left: $pv-space-4;
+    color: $pv-muted;
+  }
+}
+
+.vaciasAyuda {
+  margin: $pv-space-2 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: $pv-muted;
+}
+
+.textoFallo {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: $pv-navy;
+}
+
+.notaFallo {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: $pv-muted;
+}
+
+.boton {
+  align-self: flex-start;
+  padding: $pv-space-2 $pv-space-4;
+  border: none;
+  border-radius: $pv-radius-sm;
+  background: $pv-primary;
+  color: $pv-white;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: color.adjust($pv-primary, $lightness: -5%);
+  }
+}

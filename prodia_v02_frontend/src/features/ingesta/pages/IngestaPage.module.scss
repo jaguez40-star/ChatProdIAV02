@@ -1,0 +1,67 @@
+@use '../../../shared/styles/tokens' as *;
+
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-6;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: $pv-space-6;
+}
+
+.cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-2;
+}
+
+.titulo {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: $pv-primary;
+}
+
+.subtitulo {
+  max-width: 62ch;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: $pv-muted;
+}
+
+.subiendo {
+  display: flex;
+  align-items: center;
+  gap: $pv-space-2;
+  margin: 0;
+  font-size: 0.88rem;
+  color: $pv-muted;
+}
+
+.girando {
+  animation: girar 1s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .girando {
+    animation: none;
+  }
+}
+
+.errorSubida {
+  margin: 0;
+  padding: $pv-space-3 $pv-space-4;
+  border-left: 3px solid $pv-neg;
+  border-radius: $pv-radius-sm;
+  background: #fdeeee;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: $pv-navy;
+}

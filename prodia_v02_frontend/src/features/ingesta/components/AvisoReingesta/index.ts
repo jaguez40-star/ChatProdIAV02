@@ -1,0 +1,1 @@
+export { AvisoReingesta } from './AvisoReingesta';

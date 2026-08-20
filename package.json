@@ -8,6 +8,8 @@
     "dev": "concurrently --names back,front --prefix-colors blue,green --kill-others-on-fail \"pnpm run dev:back\" \"pnpm run dev:front\"",
     "dev:back": "cd prodia_v02_backend && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 6034",
     "dev:front": "pnpm --filter prodia-v02-frontend dev",
+    "build": "pnpm run build:front",
+    "build:front": "pnpm --filter prodia-v02-frontend build",
     "lint": "concurrently --names back,front --prefix-colors blue,green \"pnpm run lint:back\" \"pnpm run lint:front\"",
     "lint:back": "cd prodia_v02_backend && uv run ruff check . && uv run black --check .",
     "lint:front": "pnpm --filter prodia-v02-frontend lint",

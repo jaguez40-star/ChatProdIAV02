@@ -1,0 +1,121 @@
+@use 'sass:color';
+@use '../../../../shared/styles/tokens' as *;
+
+.aviso {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-4;
+  padding: $pv-space-6;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+  background: $pv-white;
+  box-shadow: $pv-shadow-card;
+}
+
+.cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-1;
+}
+
+.titulo {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: $pv-primary;
+}
+
+.archivo {
+  margin: 0;
+  font-family: $pv-font-mono;
+  font-size: 0.85rem;
+  color: $pv-navy;
+  word-break: break-all;
+}
+
+.meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: $pv-muted;
+}
+
+.nota {
+  display: flex;
+  gap: $pv-space-3;
+  padding: $pv-space-3 $pv-space-4;
+  border-radius: $pv-radius-sm;
+  border-left: 3px solid;
+
+  svg {
+    flex: none;
+    margin-top: 2px;
+  }
+}
+
+// Tres tonos para tres significados distintos: reemplazar no es lo mismo que repetir
+// lo ya cargado, y ninguno de los dos es un error.
+.alerta {
+  border-color: #c98a00;
+  background: #fff8e6;
+  color: #7a5200;
+}
+
+.info {
+  border-color: $pv-navy;
+  background: #eef3fb;
+  color: $pv-navy;
+}
+
+.ok {
+  border-color: $pv-pos;
+  background: $pv-lime-soft;
+  color: $pv-primary;
+}
+
+.notaTitulo {
+  margin: 0 0 2px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.notaTexto {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: $pv-space-2;
+}
+
+.primario,
+.secundario {
+  padding: $pv-space-2 $pv-space-4;
+  border-radius: $pv-radius-sm;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background $pv-transition-base;
+}
+
+.primario {
+  border: none;
+  background: $pv-primary;
+  color: $pv-white;
+
+  &:hover {
+    background: color.adjust($pv-primary, $lightness: -5%);
+  }
+}
+
+.secundario {
+  border: 1px solid $pv-border;
+  background: $pv-white;
+  color: $pv-muted;
+
+  &:hover {
+    background: $pv-bg;
+  }
+}

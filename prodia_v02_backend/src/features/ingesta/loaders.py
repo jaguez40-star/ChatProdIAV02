@@ -69,6 +69,22 @@ def _celda(fila: tuple[Any, ...], posicion: int | None) -> Any:
     return fila[posicion]
 
 
+def _primera_presente(indice: dict[str, int], *nombres: str) -> int | None:
+    """Posición de la primera columna que exista, entre varios nombres posibles.
+
+    La vicepresidencia es el caso que obliga a esto: se ha llamado `GRUPO1_SIGLA`,
+    `NIVEL1_SIGLA` y `VICE` en distintos vintages del reporte (el archivo de 2024 usa
+    `VICE`). Fijar un solo nombre deja `vice_id` en nulo, y como esa columna es NOT NULL
+    en el fact, la ingesta entera revienta contra la base — no en la lectura, donde sería
+    evidente, sino al insertar.
+    """
+    for nombre in nombres:
+        posicion = indice.get(nombre)
+        if posicion is not None:
+            return posicion
+    return None
+
+
 def cargar_produccion_dia(
     hoja: Any,
     reporte_id: int,
@@ -128,7 +144,14 @@ def cargar_produccion_dia(
                 "fecha": fecha,
                 "fuente_id": fuente_id,
                 "vice_id": dims["vice"].get(
-                    s(_celda(fila, indice.get("GRUPO1_SIGLA")))
+                    s(
+                        _celda(
+                            fila,
+                            _primera_presente(
+                                indice, "GRUPO1_SIGLA", "NIVEL1_SIGLA", "VICE"
+                            ),
+                        )
+                    )
                 ),
                 "socio_id": dims["socio"].get(s(_celda(fila, indice.get("SOCIO")))),
                 "concepto_id": dims["concepto"].get(
@@ -212,7 +235,14 @@ def cargar_produccion_mes(
                 "fecha": fecha,
                 "fuente_id": fuente_id,
                 "vice_id": dims["vice"].get(
-                    s(_celda(fila, indice.get("NIVEL1_SIGLA")))
+                    s(
+                        _celda(
+                            fila,
+                            _primera_presente(
+                                indice, "NIVEL1_SIGLA", "GRUPO1_SIGLA", "VICE"
+                            ),
+                        )
+                    )
                 ),
                 "socio_id": dims["socio"].get(s(_celda(fila, indice.get("SOCIO")))),
                 "concepto_id": dims["concepto"].get(

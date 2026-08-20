@@ -1,0 +1,91 @@
+@use 'sass:color';
+@use '../../../../shared/styles/tokens' as *;
+
+.zona {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $pv-space-3;
+  padding: $pv-space-6 * 2 $pv-space-6;
+  border: 2px dashed $pv-border;
+  border-radius: $pv-radius-md;
+  background: $pv-panel;
+  text-align: center;
+  transition: border-color $pv-transition-base, background $pv-transition-base;
+}
+
+// Realimentación al arrastrar: sin ella no se sabe si la zona acepta el archivo.
+.encima {
+  border-color: $pv-primary;
+  background: $pv-lime-soft;
+}
+
+.deshabilitada {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+// La entrada nativa se oculta pero permanece en el DOM: es lo que abre el diálogo de
+// archivos y lo que hace que la zona sea utilizable con teclado y lectores de pantalla.
+.entrada {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.icono {
+  color: $pv-primary;
+}
+
+.titulo {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: $pv-primary;
+}
+
+.ayuda {
+  max-width: 46ch;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: $pv-muted;
+
+  code {
+    padding: 1px 5px;
+    border-radius: $pv-radius-sm;
+    background: $pv-white;
+    border: 1px solid $pv-border;
+    font-family: $pv-font-mono;
+    font-size: 0.82em;
+  }
+}
+
+.boton {
+  display: inline-flex;
+  align-items: center;
+  gap: $pv-space-2;
+  padding: $pv-space-2 $pv-space-4;
+  border: none;
+  border-radius: $pv-radius-sm;
+  background: $pv-primary;
+  color: $pv-white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background $pv-transition-base;
+
+  &:hover:not(:disabled) {
+    background: color.adjust($pv-primary, $lightness: -5%);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}

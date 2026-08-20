@@ -31,6 +31,7 @@ from src.features.analisis.api import router as analisis_router
 from src.features.auth.api import router as auth_router
 from src.features.diferidas.api import router as diferidas_router
 from src.features.ebitda.api import router as ebitda_router
+from src.features.ingesta.api import router as ingesta_router
 from src.features.mantenimientos.api import router as mantenimientos_router
 from src.features.permissions.api import router as permissions_router
 from src.features.tablas.api import router as tablas_router
@@ -85,6 +86,14 @@ OPENAPI_TAGS: list[dict[str, str]] = [
         "description": (
             "Eventos de servicio a pozo que solapan el mes analizado. Degrada "
             "siempre con HTTP 200."
+        ),
+    },
+    {
+        "name": "Ingesta",
+        "description": (
+            "Carga de reportes .xlsm a PostgreSQL con progreso en vivo. Es la única "
+            "feature que ESCRIBE en `db_prod`: toda la ingesta va en una transacción, "
+            "y solo el evento final `confirmado` garantiza que los datos se guardaron."
         ),
     },
     {"name": "Health", "description": "Estado del backend y sus bases de datos."},
@@ -157,6 +166,7 @@ app.include_router(analisis_router, prefix=API_PREFIX)
 app.include_router(ebitda_router, prefix=API_PREFIX)
 app.include_router(diferidas_router, prefix=API_PREFIX)
 app.include_router(mantenimientos_router, prefix=API_PREFIX)
+app.include_router(ingesta_router, prefix=API_PREFIX)
 
 
 @app.get(f"{API_PREFIX}/health", tags=["Health"])

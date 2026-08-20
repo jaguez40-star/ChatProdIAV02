@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from sqlalchemy.exc import OperationalError
 
 from src.features.ingesta.extractores.comunes import FilaExtraida, ResultadoExtractor
 from src.features.ingesta.repositories import IngestaRepository
@@ -329,6 +330,70 @@ def test_el_fallo_de_un_extractor_queda_en_la_bitacora(
     con_error = [r for r in registros if r.parametros.get("e") == "ERROR"]
     assert con_error
     assert "layout cambiado" in con_error[0].parametros["m"]
+
+
+# ── Un fallo de BD no es un fallo de hoja ────────────────────────────────────
+
+
+@pytest.mark.unit
+def test_un_error_de_base_de_datos_aborta_la_ingesta_entera(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """La resiliencia 'una hoja no tumba el resto' vale para fallos de LECTURA, nunca
+    para fallos de BD: PostgreSQL deja la transacción abortada y rechaza toda sentencia
+    posterior. Seguir sería fingir que se trabaja mientras todo lo demás falla —y el
+    propio `INSERT` en la bitácora del manejador de error reventaría con
+    `InFailedSqlTransaction`, enmascarando la causa real."""
+
+    def extractor_con_fallo_de_bd(_: Any) -> ResultadoExtractor:
+        raise OperationalError("INSERT ...", {}, Exception("conexión perdida"))
+
+    def extractor_sano(_: Any) -> ResultadoExtractor:
+        return ResultadoExtractor(
+            filas=[FilaExtraida(1, "T1", {"a": "x"}, ENE, 1.0)],
+            tablas_declaradas=[(1, "T1")],
+        )
+
+    servicio, sesion, _ = _servicio(
+        HOJAS_STD,
+        extractores=[
+            ("INICIO", extractor_con_fallo_de_bd),
+            ("COMENTARIOS", extractor_sano),
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    with pytest.raises(OperationalError):
+        _ingerir(servicio, HOJAS_STD)
+
+    # Ni siquiera se intentó dejar rastro en la bitácora: la transacción ya no lo admite.
+    registros = sesion.inserciones_en("core.ingesta_log")
+    assert not [r for r in registros if r.parametros.get("e") == "ERROR"]
+
+
+@pytest.mark.unit
+def test_un_error_de_bd_en_un_loader_tambien_aborta(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mismo razonamiento del lado de los loaders de las tablas estrella."""
+    servicio, sesion, eventos = _servicio(HOJAS_STD, monkeypatch=monkeypatch)
+
+    import src.features.ingesta.services as modulo
+
+    def cargar_roto(*_: Any, **__: Any) -> Any:
+        raise OperationalError("INSERT ...", {}, Exception("conexión perdida"))
+
+    monkeypatch.setattr(modulo, "cargar_comentarios", cargar_roto)
+
+    with pytest.raises(OperationalError):
+        _ingerir(servicio, HOJAS_STD)
+
+    errores = [e for e in eventos if e.tipo == "hoja" and e.estado == "error"]
+    assert [e.hoja for e in errores] == ["COMENTARIOS"]
+    assert "revertir" in (errores[0].detalle or "")
+    # Tampoco aquí se intenta escribir en la bitácora: la transacción ya está abortada.
+    registros = sesion.inserciones_en("core.ingesta_log")
+    assert not [r for r in registros if r.parametros.get("e") == "ERROR"]
 
 
 # ── Resultado ────────────────────────────────────────────────────────────────

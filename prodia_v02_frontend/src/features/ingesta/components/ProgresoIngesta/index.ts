@@ -1,0 +1,1 @@
+export { ProgresoIngesta } from './ProgresoIngesta';

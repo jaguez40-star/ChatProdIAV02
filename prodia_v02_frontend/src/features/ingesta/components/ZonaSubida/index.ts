@@ -1,0 +1,1 @@
+export { ZonaSubida } from './ZonaSubida';

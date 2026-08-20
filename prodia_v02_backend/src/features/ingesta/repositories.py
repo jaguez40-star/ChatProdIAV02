@@ -253,7 +253,9 @@ class IngestaRepository:
     def crear_caches_de_dimension(self) -> dict[str, CacheDimension]:
         """Las ocho dimensiones pequeñas que consultan los loaders de facts."""
         definiciones = [
-            ("vice", "core.dim_vicepresidencia", "vice_id", "sigla"),
+            # `dim_vicepresidencia` es la única que no usa `nombre`: su clave natural es
+            # `codigo` (la sigla VRO/VRC/…), y `nombre_completo` es solo descriptivo.
+            ("vice", "core.dim_vicepresidencia", "vice_id", "codigo"),
             ("socio", "core.dim_socio", "socio_id", "nombre"),
             ("concepto", "core.dim_concepto", "concepto_id", "nombre"),
             ("tipo_producto", "core.dim_tipo_producto", "tipo_producto_id", "nombre"),

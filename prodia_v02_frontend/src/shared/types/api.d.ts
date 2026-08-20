@@ -535,6 +535,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ingesta/reporte-existente": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ¿Ya se ingirió un reporte de esta fecha?
+         * @description Comprobación previa a subir, para poder avisar de una reingesta. Es informativa: reingerir es seguro (el ETL es idempotente), pero conviene que el usuario lo sepa antes de sobrescribir.
+         */
+        get: operations["reporte_existente_api_v1_ingesta_reporte_existente_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ingesta/archivo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Subir un .xlsm para ingerir
+         * @description Valida y guarda el archivo. **No lo procesa todavía**: devuelve un identificador con el que abrir `/ingesta/progreso/{id}`, que es donde corre el ETL y se emiten los eventos.
+         */
+        post: operations["subir_archivo_api_v1_ingesta_archivo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ingesta/progreso/{identificador}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ejecutar la ingesta y seguir su progreso (SSE)
+         * @description Abre un flujo de eventos y procesa el archivo. Los eventos por hoja llegan como `procesada` —insertada, **pendiente de confirmar**—, y solo el evento final con estado `confirmado` garantiza que los datos quedaron guardados. Si algo falla, el evento final es `revertido` e indica en qué hoja.
+         */
+        get: operations["progreso_de_ingesta_api_v1_ingesta_progreso__identificador__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -569,6 +629,11 @@ export interface components {
              * @description Meses con reporte, descendente.
              */
             meses: components["schemas"]["MesArbolOut"][];
+        };
+        /** Body_subir_archivo_api_v1_ingesta_archivo_post */
+        Body_subir_archivo_api_v1_ingesta_archivo_post: {
+            /** Archivo */
+            archivo: string;
         };
         /** CardinalidadOut */
         CardinalidadOut: {
@@ -1058,6 +1123,36 @@ export interface components {
              * @example CRUDO
              */
             dim: string;
+        };
+        /**
+         * ReporteExistente
+         * @description Respuesta de la comprobación previa a subir un archivo.
+         */
+        ReporteExistente: {
+            /**
+             * Existe
+             * @description Si ya hay un reporte con esa fecha.
+             */
+            existe: boolean;
+            /** Reporte Id */
+            reporte_id?: number | null;
+            /**
+             * Archivo
+             * @description Nombre del archivo ya ingerido.
+             */
+            archivo?: string | null;
+            /** Tipo Archivo */
+            tipo_archivo?: string | null;
+            /**
+             * Ingerido En
+             * @description Cuándo se ingirió el que ya existe.
+             */
+            ingerido_en?: string | null;
+            /**
+             * Mismo Contenido
+             * @description Si el archivo que se pretende subir es idéntico al ya ingerido, comparando el hash. `None` si no se aportó hash.
+             */
+            mismo_contenido?: boolean | null;
         };
         /** ReporteOut */
         ReporteOut: {
@@ -2433,6 +2528,160 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    reporte_existente_api_v1_ingesta_reporte_existente_get: {
+        parameters: {
+            query: {
+                /** @description Fecha del reporte en ISO (YYYY-MM-DD). */
+                fecha: string;
+                /** @description SHA-256 del archivo, para saber si es el mismo contenido. */
+                hash_archivo?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReporteExistente"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    subir_archivo_api_v1_ingesta_archivo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_subir_archivo_api_v1_ingesta_archivo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Extensión no aceptada */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El archivo supera el tamaño máximo */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Falta la fecha en el nombre, o el Excel no es legible */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    progreso_de_ingesta_api_v1_ingesta_progreso__identificador__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identificador: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
