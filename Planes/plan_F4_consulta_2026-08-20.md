@@ -86,6 +86,30 @@ equipo.
 **Dato que corrige el plan v1**: la suite backend tiene **383 tests**, no los 314 que registró
 el commit de F2 — se añadieron tests después. El plan v2 usa 383 como línea base.
 
+### 0.4.1 🔴 AP-1 ya está ocurriendo — con F3, no con F4
+
+Al cerrar DA-1 (2026-08-20) volví a medir y la cobertura **había caído sola**:
+
+| Momento | Cobertura | Causa |
+|---|---|---|
+| Primera medición | 78,97 % (3.363 líneas) | — |
+| Al cerrar DA-1, horas después | **72,41 % (3.663 líneas)** | F3 en curso |
+
+`uv run pytest --cov=src --cov-fail-under=75` → **`FAIL Required test coverage of 75% not
+reached. Total coverage: 72.41%`**. Los 383 tests pasan; lo que falla es el umbral.
+
+**Causa**: F3 (Ingesta) se construye en paralelo y sus extractores llegaron casi sin tests —
+`extractores/filiales.py` **6 %**, `extractores/p50.py` **6 %**, `extractores/comunes.py`
+**40 %** (ficheros aún sin trackear en git).
+
+**Ni lo causa F4 ni le toca a F4 arreglarlo**, pero tiene dos consecuencias:
+
+1. **El Bloque 0 verifica el gate antes de empezar.** Si al arrancar F4 el backend sigue bajo
+   75 %, cualquier commit del executor saldrá con CI rojo por una causa ajena y se perderá
+   tiempo diagnosticando la fase equivocada.
+2. **Es la prueba empírica de AP-1**: el mecanismo que predije para F4 ocurrió en F3 en horas.
+   La regla de §6.1 —cobertura bloque a bloque— deja de ser precaución teórica.
+
 ### 0.5 La trampa de escala, tercera aparición
 
 A5 ya nos costó un bug en F2 (corregido hoy, `a6d40ec`). En F4 reaparece **con un ratio distinto**:
@@ -532,7 +556,7 @@ Bloque 9 significaría 4.500 líneas escritas sin saber cuáles cubrir.
 
 | # | Bloque | Entregable | Verificación |
 |---|---|---|---|
-| **0** | 🔴 **Bloqueante: decisiones + guardián** | DA-1…DA-4 resueltas · PyYAML declarado (DA-1) · **test de I/O ampliado a ficheros** (AP-2) | `pytest tests/integration/test_sin_io_al_importar.py` **antes de escribir una línea de F4** |
+| **0** | 🔴 **Bloqueante: guardián + estado del gate** | DA-1/2/3 ya cerradas · **DA-4 pendiente** · **test de I/O ampliado a ficheros** (AP-2) · **medir el gate de cobertura** (§0.4.1) | `pytest tests/integration/test_sin_io_al_importar.py` **y** `pytest --cov=src --cov-fail-under=75`. Si el gate ya viene rojo por F3, **decirlo y parar** — no es de F4 arreglarlo |
 | **1** | Núcleo determinista | `normaliza`, `patrones`, `dominio`, `no_soportado`, `catalogo` + 4 YAML (carga perezosa) | Tests portados de `test_consulta_v2_clasificador.py` (458 líneas) · cobertura §6.1 |
 | **2** | **Drills (Q3)** | `drills.py` + `memoria.py` tipada | **Test del orden #5 antes de #6** + D2 · cobertura §6.1 |
 | **3** | Resolver + desambiguación | `resolver.py` | `test_consulta_desambiguacion.py` (179) · cobertura §6.1 |
@@ -598,8 +622,8 @@ cd .. && pnpm test:front                         # DT-6: este script SÍ evalúa
 
 | Métrica | Hoy | Criterio en F4 |
 |---|---|---|
-| Tests backend | **383** en 25,7 s | Suben; ninguno sale a la red |
-| Cobertura backend | **78,97 %** (3.363 líneas) | **No baja de 78 %** (AP-1) |
+| Tests backend | **383** (+18 deselected por el marcador `muestras` de F3) | Suben; ninguno sale a la red |
+| Cobertura backend | **72,41 %** (3.663 líneas) — ⚠️ **bajo el gate**, por F3 (§0.4.1) | **Volver a ≥78 %**; F4 no puede empeorarla |
 | Tests frontend | 39 archivos, **84,98 %** | No baja de 80 % × 4 |
 | Bundle inicial | **331,69 kB** | ≤348 kB (+5 %, AP-8) |
 | Rutas en OpenAPI | 25 | +2 (`/preguntar`, `/veredicto`) |
@@ -623,13 +647,15 @@ cd .. && pnpm test:front                         # DT-6: este script SÍ evalúa
 
 ---
 
-## 10. Decisiones abiertas — BLOQUEAN el Bloque 1
+## 10. Decisiones — 3 de 4 cerradas
+
+DA-1, DA-2 y DA-3 cerradas el 2026-08-20. **Solo DA-4 sigue abierta.**
 
 | # | Pregunta | Recomendación |
 |---|---|---|
-| **DA-1** | **PyYAML**: ¿se declara explícito en `pyproject.toml`? Hoy llega solo como transitiva de `pre-commit` (dev) y `uvicorn[standard]` (extra). **R1 exige tu aprobación.** | **Sí, declararlo.** Depender de una transitiva es el mismo fallo que `@types/plotly.js` en F2 |
-| **DA-2** | **¿Dónde vive `clasificacion_log`?** El origen la pone en `core.*` de Postgres; nuestras 3 fases solo leen de ahí (H6) | **`db_auth` — y ya no es una preferencia.** AP-4: `alembic.ini:2` versiona **solo** `db_auth`. Ponerla en Postgres exigiría inventar un mecanismo de migraciones que no existe. Además es telemetría de uso, no dato de producción, y cierra la deuda de `user_actions` |
-| **DA-3** | **¿Qué LLM en desarrollo?** El origen mide **~342 s** de arranque en frío con gemma@139. `qwen2.5:3b` local es más rápido pero *"confunde cifras"* (nuestro `config.py`) | qwen local para desarrollo, con `CONSULTA_*_LLM=false` en tests. **Q1 protege de la confusión de cifras** |
+| **DA-1** | ✅ **CERRADA (2026-08-20)** — PyYAML declarado en `pyproject.toml` con el porqué en comentario. Verificado: 67 paquetes resueltos, **cero descargas, cero versiones cambiadas**; solo 2 líneas en `uv.lock`. El origen tampoco lo declara y hace `import yaml` en 6 módulos: es una omisión suya, no una decisión (§5.2 de CLAUDE.md, "copiado corrigiendo"). | — |
+| **DA-2** | ✅ **CERRADA (2026-08-20)** — la libreta va a **`db_auth`**, migración `0004`, junto a `auth_events`. Tres razones: (1) AP-4 — `alembic.ini:2` versiona **solo** `db_auth`; ponerla en Postgres exigiría volver al método del origen, que aplica `.sql` a mano *"sin llevar registro de cuáles ya se aplicaron"* (`apply_migration.py`); (2) es telemetría de uso, no dato de producción — `db_prod` se lee, no se escribe; (3) cierra la deuda de `user_actions`, creada en F0 y sin instrumentar. | — |
+| **DA-3** | ✅ **CERRADA (2026-08-20)** — se replica el origen tal cual, verificado en su `config.py:15-54`: **`qwen2.5:3b` en desarrollo, `gemma4:latest` en el 139**, flags `CONSULTA_*_LLM` en `false` en dev (*"qwen es extractor, redacta pobre → se sirve la plantilla determinista"*). Nuestro `config.py` ya lo replica desde F2: **no hay nada que implementar**. | — |
 | **DA-4** | **¿F4 antes o después de cerrar DT-8?** El chat repite las cifras de `analisis` con prosa cordial | Cerrar DT-8 primero (el acordeón y las 4 pills contra el 139). Es media hora tuya de navegador |
 
 ---

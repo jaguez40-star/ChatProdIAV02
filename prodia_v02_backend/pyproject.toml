@@ -17,6 +17,15 @@ dependencies = [
     "openpyxl>=3.1",
     "python-multipart>=0.0.9",
     "sse-starlette>=3.4.8",
+    # F4 (Consulta): los 4 `config/*.yaml` del Motor Q y los 3 golden sets.
+    # Se declara EXPLÍCITO aunque ya estuviera instalado: llegaba solo como
+    # transitiva de `pre-commit` (que es dev, no existe en producción) y del
+    # extra `uvicorn[standard]`. El sistema de origen tampoco lo declara y
+    # hace `import yaml` en 6 módulos — le funciona por el mismo accidente.
+    # Depender de una transitiva ya nos costó el `TS2307` de `@types/plotly.js`
+    # en F2: si `uvicorn` reorganiza sus deps, F4 deja de arrancar por un
+    # cambio ajeno, y el error apuntaría a `import yaml`, no a la causa.
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
