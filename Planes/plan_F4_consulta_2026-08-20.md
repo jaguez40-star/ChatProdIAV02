@@ -86,29 +86,37 @@ equipo.
 **Dato que corrige el plan v1**: la suite backend tiene **383 tests**, no los 314 que registró
 el commit de F2 — se añadieron tests después. El plan v2 usa 383 como línea base.
 
-### 0.4.1 🔴 AP-1 ya está ocurriendo — con F3, no con F4
+### 0.4.1 ✅ AP-1 ocurrió de verdad — con F3, y se resolvió
 
 Al cerrar DA-1 (2026-08-20) volví a medir y la cobertura **había caído sola**:
 
 | Momento | Cobertura | Causa |
 |---|---|---|
 | Primera medición | 78,97 % (3.363 líneas) | — |
-| Al cerrar DA-1, horas después | **72,41 % (3.663 líneas)** | F3 en curso |
+| Al cerrar DA-1, horas después | **72,41 % (3.663 líneas)** | F3 a media construcción |
+| ✅ Al cerrar F3 (`00bf523`) | **81,51 %** · 559 tests | F3 completó sus tests |
+
+**Resuelto**: el episodio duró lo que F3 tardó en cubrir sus extractores. La línea base con la
+que arranca F4 es **559 tests / 81,51 %** — 6,5 puntos de margen sobre el gate.
 
 `uv run pytest --cov=src --cov-fail-under=75` → **`FAIL Required test coverage of 75% not
 reached. Total coverage: 72.41%`**. Los 383 tests pasan; lo que falla es el umbral.
 
-**Causa**: F3 (Ingesta) se construye en paralelo y sus extractores llegaron casi sin tests —
+**Causa** (durante el episodio): F3 se construía en paralelo y sus extractores llegaron
+inicialmente casi sin tests —
 `extractores/filiales.py` **6 %**, `extractores/p50.py` **6 %**, `extractores/comunes.py`
-**40 %** (ficheros aún sin trackear en git).
+**40 %**, entonces sin trackear en git. Al cerrar sus bloques 3-6 esos ficheros quedaron
+cubiertos y el gate volvió a verde.
 
-**Ni lo causa F4 ni le toca a F4 arreglarlo**, pero tiene dos consecuencias:
+**La lección se queda, aunque el episodio esté cerrado:**
 
-1. **El Bloque 0 verifica el gate antes de empezar.** Si al arrancar F4 el backend sigue bajo
-   75 %, cualquier commit del executor saldrá con CI rojo por una causa ajena y se perderá
-   tiempo diagnosticando la fase equivocada.
-2. **Es la prueba empírica de AP-1**: el mecanismo que predije para F4 ocurrió en F3 en horas.
-   La regla de §6.1 —cobertura bloque a bloque— deja de ser precaución teórica.
+1. **Es la prueba empírica de AP-1.** El mecanismo que predije para F4 ocurrió de verdad, en
+   otra fase, en cuestión de horas: código nuevo entra al denominador antes que sus tests y el
+   gate cae para **todo el equipo**, no solo para quien lo introdujo.
+2. **Por eso §6.1 no es una precaución teórica.** F4 añade ~4.500 líneas —bastante más de lo
+   que añadió F3— así que la cobertura se verifica al cerrar cada bloque, no al final.
+3. **El Bloque 0 mide el gate antes de empezar**, para no diagnosticar la fase equivocada si
+   otra fase vuelve a dejarlo rojo.
 
 ### 0.5 La trampa de escala, tercera aparición
 
@@ -556,7 +564,7 @@ Bloque 9 significaría 4.500 líneas escritas sin saber cuáles cubrir.
 
 | # | Bloque | Entregable | Verificación |
 |---|---|---|---|
-| **0** | 🔴 **Bloqueante: guardián + estado del gate** | DA-1/2/3 ya cerradas · **DA-4 pendiente** · **test de I/O ampliado a ficheros** (AP-2) · **medir el gate de cobertura** (§0.4.1) | `pytest tests/integration/test_sin_io_al_importar.py` **y** `pytest --cov=src --cov-fail-under=75`. Si el gate ya viene rojo por F3, **decirlo y parar** — no es de F4 arreglarlo |
+| **0** | 🔴 **Bloqueante: guardián de I/O** | DA-1/2/3 cerradas · **test de I/O ampliado a ficheros** (AP-2) · confirmar la línea base (559 tests / 81,51 %) | `pytest tests/integration/test_sin_io_al_importar.py` **y** `pytest --cov=src --cov-fail-under=75` **antes de escribir una línea de F4** |
 | **1** | Núcleo determinista | `normaliza`, `patrones`, `dominio`, `no_soportado`, `catalogo` + 4 YAML (carga perezosa) | Tests portados de `test_consulta_v2_clasificador.py` (458 líneas) · cobertura §6.1 |
 | **2** | **Drills (Q3)** | `drills.py` + `memoria.py` tipada | **Test del orden #5 antes de #6** + D2 · cobertura §6.1 |
 | **3** | Resolver + desambiguación | `resolver.py` | `test_consulta_desambiguacion.py` (179) · cobertura §6.1 |
@@ -622,8 +630,8 @@ cd .. && pnpm test:front                         # DT-6: este script SÍ evalúa
 
 | Métrica | Hoy | Criterio en F4 |
 |---|---|---|
-| Tests backend | **383** (+18 deselected por el marcador `muestras` de F3) | Suben; ninguno sale a la red |
-| Cobertura backend | **72,41 %** (3.663 líneas) — ⚠️ **bajo el gate**, por F3 (§0.4.1) | **Volver a ≥78 %**; F4 no puede empeorarla |
+| Tests backend | **559** (+33 deselected por el marcador `muestras` de F3) | Suben; ninguno sale a la red |
+| Cobertura backend | **81,51 %** — gate en verde tras cerrar F3 (§0.4.1) | **No baja de 78 %** (AP-1) |
 | Tests frontend | 39 archivos, **84,98 %** | No baja de 80 % × 4 |
 | Bundle inicial | **331,69 kB** | ≤348 kB (+5 %, AP-8) |
 | Rutas en OpenAPI | 25 | +2 (`/preguntar`, `/veredicto`) |
