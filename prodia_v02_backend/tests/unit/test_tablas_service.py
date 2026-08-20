@@ -139,6 +139,28 @@ def test_datos_modo_fechas_orden_de_dimensiones_es_de_aparicion() -> None:
     assert tabla.dimensiones == ["campo", "activo"]  # no alfabético: de aparición
 
 
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "dims",
+    [
+        {"anio": 2026},  # JSONB numérico
+        {"activo": True},  # JSONB booleano
+        {"campo": "CASTILLA", "tabla_idx": 3},  # mixto
+        {"campo": None},  # nulo
+    ],
+)
+def test_dims_admite_cualquier_tipo_de_jsonb(dims: dict[str, Any]) -> None:
+    """Regresión: `dims` es JSONB y los extractores meten números y booleanos, no solo
+    texto. Tiparlo como `dict[str, str|None]` reventaba con ValidationError contra el
+    corpus real — y no lo detectaba ningún test, porque el corpus de ejemplo usaba solo
+    cadenas."""
+    filas = [{"dims": dims, "fecha": date(2026, 8, 1), "valor": 1.0}]
+
+    tabla = _service({"filas_tabla": filas}).datos_tabla(1042, "H", 1)
+
+    assert tabla.filas[0].dims == dims
+
+
 # ── Modo `matriz` ────────────────────────────────────────────────────────────
 
 

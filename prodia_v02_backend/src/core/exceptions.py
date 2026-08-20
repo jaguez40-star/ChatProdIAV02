@@ -18,6 +18,7 @@ from typing import Any
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
@@ -70,6 +71,33 @@ async def validation_exception_handler(
     return _error_response(422, "Error de validación", errors=exc.errors())
 
 
+async def database_exception_handler(
+    request: Request, exc: SQLAlchemyError
+) -> JSONResponse:
+    """Cualquier fallo de base de datos sale como 503, no como 500 (H9, F1).
+
+    Existe porque el `try/except` dentro de un endpoint NO alcanza a cubrirlo todo: si la
+    URL de PostgreSQL está vacía o mal formada, `create_engine` lanza `ArgumentError`
+    **dentro de la dependencia** `get_prod_db`, antes de que se ejecute el cuerpo del
+    endpoint — y el cliente recibía un 500 genérico en vez del 503 que promete el
+    contrato. Con este handler, la respuesta es coherente venga el fallo de donde venga.
+
+    503 es además la semántica correcta: la BD no está disponible, no es un error del
+    servidor procesando la petición. El detalle interno va al log (L1), nunca al cliente.
+    """
+    logger.error(
+        "database_unavailable",
+        path=request.url.path,
+        exc_type=type(exc).__name__,
+        detalle=str(exc),
+    )
+    return _error_response(
+        503,
+        "La base de datos no está disponible. Intente más tarde.",
+        code="DB_UNAVAILABLE",
+    )
+
+
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     # El 500 NUNCA filtra el mensaje interno al cliente — el detalle real va
     # al log con exc_type; el cliente solo recibe el correlation_id para
@@ -86,4 +114,6 @@ def register_exception_handlers(app: FastAPI) -> None:
     """Registra todos los exception handlers en la app FastAPI."""
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
+    # Antes del handler de Exception: un fallo de BD es 503, no 500 (H9).
+    app.add_exception_handler(SQLAlchemyError, database_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, unhandled_exception_handler)

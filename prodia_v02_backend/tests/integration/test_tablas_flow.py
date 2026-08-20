@@ -55,6 +55,31 @@ async def test_override_de_db_prod_evita_postgres_real(patch_prod_db: Any) -> No
 
 
 @pytest.mark.integration
+async def test_fallo_de_bd_en_la_dependencia_sale_como_503_no_500() -> None:
+    """Regresión H9: si `PROD_DATABASE_URL` está vacía o mal formada, `create_engine`
+    lanza `ArgumentError` DENTRO de la dependencia `get_prod_db`, antes del cuerpo del
+    endpoint — donde el `try/except` local no alcanza. Sin el handler global de
+    `SQLAlchemyError`, el cliente recibía un 500 genérico en vez del 503 del contrato.
+    """
+    from sqlalchemy.exc import ArgumentError
+
+    from src.core.exceptions import database_exception_handler
+
+    class _PeticionFalsa:
+        url = type("Url", (), {"path": "/api/v1/tablas/arbol"})()
+
+    respuesta = await database_exception_handler(
+        _PeticionFalsa(),  # type: ignore[arg-type]
+        ArgumentError("Could not parse SQLAlchemy URL from given URL string"),
+    )
+
+    assert respuesta.status_code == 503
+    cuerpo = respuesta.body.decode()
+    assert "DB_UNAVAILABLE" in cuerpo
+    assert "SQLAlchemy URL" not in cuerpo  # L1 — no filtra el detalle interno
+
+
+@pytest.mark.integration
 async def test_la_cadena_dependencia_repo_service_funciona_sin_postgres(
     patch_prod_db: Any,
 ) -> None:

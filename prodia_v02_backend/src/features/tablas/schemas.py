@@ -13,7 +13,7 @@ silencioso ante un tipo no reconocido).
 from __future__ import annotations
 
 from datetime import date
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -92,10 +92,18 @@ class FilaTablaOut(BaseModel):
     `valores` admite `float` (modos `fechas`/`matriz`) y `str` (modo `texto`,
     COMENTARIOS) porque el origen unifica ambos en la misma estructura y el
     frontend hace dispatch por `TablaDatosOut.modo`.
+
+    `dims` es `Any` a propósito: en `core.fact_tabla_hoja` la columna `dims` es **JSONB**
+    y los extractores meten ahí lo que trae cada hoja — cadenas (`{"campo": "CASTILLA"}`)
+    pero también números (`{"anio": 2026}`) y booleanos. Tiparlo como `dict[str, str|None]`
+    hacía reventar la serialización con `ValidationError` en cuanto una hoja traía un
+    número, y el fallo NO aparecía en los tests (que usan dims de texto): solo contra el
+    corpus real. El visor únicamente muestra estos valores, no opera con ellos.
     """
 
-    dims: dict[str, str | None] = Field(
-        ..., description="Valores de las columnas de dimensión de la fila."
+    dims: dict[str, Any] = Field(
+        ...,
+        description="Valores de las columnas de dimensión de la fila (JSONB libre).",
     )
     valores: list[float | str | None] = Field(
         ..., description="Valores alineados posicionalmente con `meses`."
