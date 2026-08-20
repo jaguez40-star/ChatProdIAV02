@@ -1,0 +1,190 @@
+# patrones_grupo.yaml — Capa 1 del clasificador de grupo (Motor Q v2 · Fase 1)
+#
+# Los patrones son REGEX evaluados sobre texto NORMALIZADO (norm() de v2: UPPER, sin
+# acentos, espacios colapsados). Cero lógica aquí — patrones.py solo carga y compila.
+#
+# CRECIMIENTO: únicamente vía el ciclo del audit_motor_clas.md §3 — casos VERIFICADOS
+# (confirmado_*/corregido_* en core.clasificacion_log) + golden ampliado en verde ANTES
+# de dar por bueno un patrón nuevo. El git log de este archivo es la historia de cómo el
+# clasificador aprendió el vocabulario del negocio.
+#
+# ⚠ Este YAML se carga UNA vez al arranque del backend (como _INDEX del resolver v1):
+#   agregar/editar un patrón requiere REINICIAR los backends para que aplique.
+
+version: 1
+
+# Se evalúan ANTES que todo (trampa conocida: "¿cuántos días con reporte hay de X?"
+# trae "CUANTOS" pero pregunta por la DISPONIBILIDAD del dato, no por una cifra).
+precedencia_maxima:
+  jerarquizar:
+    # Conteo de jerarquía: "cuántos pozos/campos/gerencias/activos TIENE X". Trae CUANTOS pero pide
+    # ESTRUCTURA (nº de sub-entidades), no una cifra. Mismo mecanismo que "días con reporte" (huella):
+    # se evalúa ANTES que el 'CUANT[OA]S?\b' de cuantificar → gana el enrutamiento.
+    # 🔑 EXIGE EL VERBO ESTRUCTURAL (TIENE/CONFORMAN/…/HAY EN). Sin él, el patrón se tragaba preguntas
+    # de OTROS grupos y —al vivir en precedencia_maxima— las sobrescribía TODAS (regresión verificada
+    # 2026-08-03): "cuántos campos están por debajo de la meta" y "cuántos campos pesan en el gap" son
+    # ANALIZAR; "cuántos pozos produjeron en mayo" e "cuántos campos incumplieron el presupuesto" son
+    # CUANTIFICAR. Con el verbo, esas 5 dejan de calzar y conservan su grupo.
+    # NO se ancla (fuera de patrones_anclados): sin entidad, "pozos/campos/…" es vocabulario
+    # ESTRUCTURAL → pasa por el filtro de dominio y escala a Capa 2 (franja estructural).
+    - 'CUANT[OA]S?\s+(CAMPOS?|POZOS?|ACTIVOS?|GERENCIAS?)\s+(TIENE[N]?|CONFORMAN|INTEGRAN|COMPONEN|AGRUPA|HAY\s+EN)'
+    - 'QUE INFORMACION'
+    - 'QUE DATOS'
+    - 'QUE REPORTES'
+    - 'QUE HOJAS'
+    - 'DESDE CUANDO'
+    - 'HASTA CUANDO'
+    - 'CUANTOS DIAS CON REPORTE'
+    - 'DIAS CON REPORTE'
+    - 'COBERTURA'
+    - 'DISPONIBILIDAD'
+    - 'DISPONIBLE'
+    - 'HUELLA'
+    - 'DENSIDAD'
+    - 'QUE SE SABE'
+
+grupos:
+  jerarquizar:
+    - 'PERTENECE[N]?\s+A'
+    - 'PERTENECE[N]?\b'
+    - 'ESTA[N]?\s+ASOCIAD[OA]S?\s+A'
+    - 'QUE\s+ES\s+\w+'
+    - 'QUIEN\s+ES\b'
+    - 'QUE\s+TIPO\s+DE\s+ENTIDAD'
+    - 'CUALES?\s+(CAMPOS?|POZOS?|ACTIVOS?|GERENCIAS?)\s+(TIENE|CONFORMAN|INTEGRAN|COMPONEN)'
+    - '(CAMPOS?|POZOS?|ACTIVOS?)\s+(TIENE|CONFORMAN|INTEGRAN|COMPONEN)'
+    - 'DE\s+QUE\s+(ACTIVO|VICEPRESIDENCIA|CAMPO|EMPRESA|GERENCIA|FILIAL)'
+    - 'A\s+QUE\s+(ACTIVO|VICEPRESIDENCIA|CAMPO|EMPRESA|GERENCIA|FILIAL)'
+    - 'ESTRUCTURA\s+(DE|DEL|COMPLETA)'
+    - 'CONFORMAN'
+    - 'SE\s+COMPONE'
+    - 'COMPUESTO\s+POR'
+    - 'AGRUPA'
+    - '\bES\s+(UNA?\s+)?(FILIAL|ACTIVO|CAMPO|POZO|GERENCIA)'
+    - 'DONDE\s+ESTA\s+COLGAD[OA]'
+    - 'JERARQUIA'
+    # RANKING ESTRUCTURAL (2026-08-04). Ordena entidades de la jerarquía por CONTEO (pozos/gerencias/
+    # activos/campos) — eje ortogonal al N5 de cuantificar, que rankea por PRODUCCIÓN. Exigen DOBLE
+    # señal estructural (sustantivo de nivel + sustantivo de conteo, o "más grandes/pequeños"), así
+    # que no matchean producción ni off-topic. Verificado 2026-08-04 contra los 95 casos del golden
+    # (clasificacion + cuantificar): 0 secuestros. Van en `grupos` y NO en precedencia_maxima a
+    # propósito: así `analizar` conserva precedencia en preguntas causales ("¿por qué los campos con
+    # más pozos producen menos?"), que es lo correcto.
+    - '(CAMPOS?|ACTIVOS?|GERENCIAS?)\s+(CON|DE)\s+(MAS|MENOS|MAYOR|MENOR)\s+(POZOS?|CAMPOS?|GERENCIAS?|ACTIVOS?)'
+    - '(QUE|CUAL(ES)?)\s+(VICEPRESIDENCIA|GERENCIA|ACTIVO|CAMPO)S?\s+TIENE[N]?\s+(MAS|MENOS|MAYOR|MENOR)\s+(GERENCIAS?|ACTIVOS?|CAMPOS?|POZOS?)'
+    - '(CAMPOS?|ACTIVOS?|GERENCIAS?)\s+MAS\s+(GRANDES?|PEQUEN[OA]S?|CHIC[OA]S?)'
+    - '(CAMPOS?|ACTIVOS?|GERENCIAS?)\s+(CON|DE)\s+(MAYOR|MENOR)\s+(NUMERO|CANTIDAD)\s+DE'
+  cuantificar:
+    - 'CUANT[OA]S?\b'
+    - 'QUE\s+PRODUJO'
+    - 'PRODUCCION\s+DE'
+    - 'ACUMUL(O|A|ADO|ADA)'
+    - 'MES\s+A\s+MES'
+    - 'COMO\s+VARIO'
+    - 'TOTAL\s+DE'
+    - 'VALOR\s+DE'
+    - 'DIA\s+A\s+DIA'
+    - 'ENTRE\s+\w+\s+Y\s+\w+'
+    - 'PROMEDIO\s+(DE|DIARIO|MENSUAL)'
+    # N5 RANKING (2026-08-04). GENÉRICOS a propósito (NO van a patrones_anclados): así pasan por el
+    # filtro de dominio y exigen entidad O vocabulario. Verificado 2026-08-04: las preguntas reales
+    # ("…más CRUDO…", "…de GAS…", "…vs PRESUPUESTO") dan nivel_dominio='fuerte' → enrutan DIRECTO sin
+    # LLM. Anclarlas repetiría el error del 2026-08-02 ("mejores campos de la dieta mediterránea").
+    - 'TOP\s+\d+'
+    - 'RANKING\b'
+    - '(MAYOR|MENOR|MAS|MENOS)\s+(CANTIDAD|PRODUCCION|VOLUMEN)'
+    - '(PRODUCE|PRODUJO|PRODUCEN|PRODUJERON)\s+(MAS|MENOS)\b'
+    - '(MAS|MENOS)\s+(CRUDO|GAS|BLANCOS)\b'
+    - '(MEJORES|PEORES)\s+(CAMPOS?|ACTIVOS?)'
+    - 'MAS\s+(ALTA|BAJA)\s+PRODUCCION'
+    - 'QUEDARON\s+(MAS\s+)?CORTOS'
+    # [2026-08-04] fix bug real: "¿cuáles campos son los MAYORES PRODUCTORES de crudo?" caía en
+    # jerarquizar (ver fix \b de 'ES CAMPO' arriba) y además el vocabulario de N5 no tenía la forma
+    # plural MAYORES/MENORES ni "PRODUCTOR(ES)". Genérico a propósito (mismo criterio de arriba):
+    # da nivel_dominio='fuerte' por el nombre de producto explícito -> enruta directo sin LLM.
+    - '(MAYOR|MENOR)(ES)?\s+PRODUCTOR(ES)?\s+DE\s+(CRUDO|GAS|BLANCOS)'
+  analizar:
+    - 'POR\s+QUE'
+    - 'A\s+QUE\s+SE\s+DEBE'
+    - 'COMO\s+VAMOS'
+    - 'VAMOS\s+A\s+(LLEGAR|CERRAR|ALCANZAR)'
+    - 'QUE\s+CAMPOS?\s+PESA[N]?'
+    - 'QUE\s+HACER'
+    - 'SE\s+VE\s+RECUPERACION'
+    - 'QUE\s+PASO\s+CON'
+    - 'DETRACTORES'
+    - 'CAUSAS?\s+DE'
+    - 'EXPLICA'
+    - 'PROYECCION'
+    - 'TENDENCIA'
+    - 'COMPENSAN?'
+    - 'GAP\b'
+    - 'P50\b'
+    - 'META\b'
+    - 'DIFERIDAS'
+    - 'MANTENIMIENTOS?'
+    - 'EBITDA'
+    - 'NOPAT'
+
+# Colisión (2+ grupos atrapan): gana el primero de esta lista. Razón (motor_Q.md §1.1):
+# con señales mixtas la pregunta casi siempre quiere el nivel más profundo — "¿cuánto nos
+# falta para la meta?" trae CUANTO (cuantificar) y META (analizar) → analizar.
+precedencia_colision: [analizar, cuantificar, jerarquizar]
+
+# --- Filtro de dominio (motor_Q.md §1.2, Decisión D2) --------------------------------------
+# Patrones ANCLADOS: señal inequívoca de dominio → se saltan el filtro (enrutan directo aunque
+# no haya entidad ni palabra de vocabulario). El RESTO son "genéricos" y SÍ pasan por el filtro.
+# Las cadenas calzan EXACTO con las de grupos/precedencia_maxima. Crece por el ciclo verificado.
+#
+# [2026-08-02] Retirados de esta lista (pasan a genéricos): 'META\b', 'DETRACTORES',
+#   'QUE CAMPOS? PESA[N]?', 'CUANTOS DIAS CON REPORTE'. Verificado en vivo (lote de prueba en
+#   Test Clas, calificado por el usuario/Control 3): las 4 disparaban sobre temas AJENOS a
+#   producción por coincidencia sintáctica pura ("meta de ahorro", "detractores del rendimiento
+#   académico", "campos pesan en la dieta mediterránea", "días con reporte sobre el clima").
+#   Regla del usuario: "Meta debería estar acompañado del término producción para que fuera de
+#   Análisis" — generaliza a las 4: la palabra sola NO basta, necesita entidad o vocabulario.
+#   Único caso del golden afectado: "¿Cuánto nos falta para la meta?" (sin entidad ni
+#   vocabulario) pasa de analizar a desconocido — decisión explícita, no regresión accidental.
+#
+# [2026-08-02 · 2ª tanda] Retirada 'COMO VAMOS' (trampa verificada: "¿cómo vamos con la meta de
+#   pasos diarios?" saltaba el filtro por la ancla y clasificaba analizar). Ahora pasa por el
+#   filtro: sin entidad ni vocabulario → OUT. "¿Cómo vamos contra el P50?" NO se rompe porque
+#   'P50\b' sigue anclado (protege ese caso). 'VAMOS A LLEGAR' se conserva anclado: el golden
+#   "¿vamos a llegar a la meta este mes?" no trae vocabulario y depende de esa ancla.
+patrones_anclados:
+  # de precedencia_maxima (disponibilidad del dato — dominio puro):
+  - 'DIAS CON REPORTE'
+  - 'COBERTURA'
+  - 'DISPONIBILIDAD'
+  - 'DISPONIBLE'
+  - 'HUELLA'
+  - 'DENSIDAD'
+  # de jerarquizar (nombran niveles del catálogo):
+  - 'CUALES?\s+(CAMPOS?|POZOS?|ACTIVOS?|GERENCIAS?)\s+(TIENE|CONFORMAN|INTEGRAN|COMPONEN)'
+  - '(CAMPOS?|POZOS?|ACTIVOS?)\s+(TIENE|CONFORMAN|INTEGRAN|COMPONEN)'
+  - 'DE\s+QUE\s+(ACTIVO|VICEPRESIDENCIA|CAMPO|EMPRESA|GERENCIA|FILIAL)'
+  - 'A\s+QUE\s+(ACTIVO|VICEPRESIDENCIA|CAMPO|EMPRESA|GERENCIA|FILIAL)'
+  - '\bES\s+(UNA?\s+)?(FILIAL|ACTIVO|CAMPO|POZO|GERENCIA)'
+  - 'DONDE\s+ESTA\s+COLGAD[OA]'
+  - 'JERARQUIA'
+  # de cuantificar (producción explícita):
+  - 'QUE\s+PRODUJO'
+  - 'PRODUCCION\s+DE'
+  # de analizar (métricas/objetos del negocio):
+  - 'GAP\b'
+  - 'P50\b'
+  - 'DIFERIDAS'
+  - 'MANTENIMIENTOS?'
+  - 'EBITDA'
+  - 'NOPAT'
+  # 'COMO VAMOS' retirada [2026-08-02 · 2ª tanda]: era demasiado amplia (bypass con cualquier
+  # tema). Sigue siendo patrón genérico de analizar; ahora pasa por el filtro. "cómo vamos contra
+  # el P50" queda protegido por la ancla 'P50\b'. Ver nota arriba.
+  - 'VAMOS\s+A\s+(LLEGAR|CERRAR|ALCANZAR)'
+  # Ranking estructural (2026-08-04): doble señal estructural = dominio autoconfirmado. ANCLAJE
+  # OBLIGATORIO: sin él, "¿qué vicepresidencia tiene más gerencias?" cae en desconocido/OUT
+  # (nivel_dominio devuelve None para ese texto — medido 2026-08-04), no solo "escala al LLM".
+  - '(CAMPOS?|ACTIVOS?|GERENCIAS?)\s+(CON|DE)\s+(MAS|MENOS|MAYOR|MENOR)\s+(POZOS?|CAMPOS?|GERENCIAS?|ACTIVOS?)'
+  - '(QUE|CUAL(ES)?)\s+(VICEPRESIDENCIA|GERENCIA|ACTIVO|CAMPO)S?\s+TIENE[N]?\s+(MAS|MENOS|MAYOR|MENOR)\s+(GERENCIAS?|ACTIVOS?|CAMPOS?|POZOS?)'
+  - '(CAMPOS?|ACTIVOS?|GERENCIAS?)\s+MAS\s+(GRANDES?|PEQUEN[OA]S?|CHIC[OA]S?)'
+  - '(CAMPOS?|ACTIVOS?|GERENCIAS?)\s+(CON|DE)\s+(MAYOR|MENOR)\s+(NUMERO|CANTIDAD)\s+DE'

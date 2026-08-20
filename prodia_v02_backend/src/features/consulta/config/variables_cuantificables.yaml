@@ -1,0 +1,191 @@
+# ============================================================================
+# CATÁLOGO DE CUANTIFICACIÓN — Motor Q v2, Grupo 2 (DRAFT de diseño)
+# ----------------------------------------------------------------------------
+# Fecha: 2026-08-02 · Derivado de AUDITORIA_VIABILIDAD_CUANTIFICAR.md
+# Cada celda verificada contra la BD en vivo (daily_report_prod, robustez_v02,
+# ECP_DIFERIDAS). NO es código en producción — es el contrato que el motor leerá.
+#
+# Regla madre: Python calcula, el LLM solo redacta. El catálogo (no el LLM)
+# decide qué es una variable, con qué referencia y a qué grano.
+#
+# confianza: alta = responder directo · media = responder + descargo obligatorio
+#            no = no soportado (rechazar/declarar hueco)
+# ============================================================================
+
+meta:
+  default_fuente: INGESTA            # reporte diario = la cifra oficial (§DECISIÓN 1)
+  default_referencia: PPTO           # la meta por defecto (§DECISIÓN 2)
+  regla_no_mezclar: "INGESTA y robustez NO reconcilian (~6,5×). Nunca sumar los dos
+                     mundos en una respuesta; robustez entra rotulado 'universo robustez'."
+  periodo_soportado: "mes o rango de meses"   # v1: NO año/trimestre/semana (T-4). El GRANO (día/mes)
+                                              # es aparte: serie diaria dentro de un mes SÍ (crudo/gas)
+  techo_datos: { dia: 2026-05-17, mes_real: 2026-05-31 }
+  arquitectura_fuentes:
+    daily_report_prod: "get_engine() — ya conectado (default)"
+    robustez_v02:      "get_ops_engine() en core/db.py — YA EXISTE (lo usa el feature ebitda). Reusar."
+    ECP_DIFERIDAS_db:  "SQLite; el backend FastAPI aún NO la lee (solo Flask /api/diferidas/frecuencia).
+                        Pendiente menor: lector SQLite o proxy. En 139 la BD (954MB) no está subida."
+    pendiente_139:     "confirmar robustez_v02 poblada en 139; subir ECP_DIFERIDAS.db (bloqueo conocido)."
+
+# ---------------------------------------------------------------------------
+# REFERENCIAS (los "modos" contra los que se cuantifica)
+# ---------------------------------------------------------------------------
+referencias:
+  REAL:       { fuente: fact_mes, escenario: REAL, nota: "lo producido; mes en curso = PROYECCIÓN (T-1)" }
+  PPTO:       { fuente: fact_mes, escenario: PPTO, default: true }
+  OPERATIVO:  { fuente: fact_mes, escenario: OPERATIVO, nota: "presupuesto revisado (~PPTO +1%)" }
+  CONTABLE:   { fuente: fact_mes, escenario: CONTABLE, nota: "cierre contable; SOLO meses cerrados" }
+  P50:        { fuente: reporte_president, unidad: kbpe, solo_nivel: [empresa],
+                nota: "SOLO nivel ECP-global. No reconcilia con fact (~5,8×); no existe a campo/entidad.
+                       El motor NO debe ofrecer 'vs P50' cuando la entidad es campo/activo/gerencia." }
+  promedio_anio: { fuente: derivada, nota: "referencia de blancos; media de meses cerrados" }
+  PROGRAMA:   { fuente: fact_programa_ecp, bloqueado: true,
+                motivo: "VERSIONADO (V1..V19; sumar sin filtrar versión infla 8×) +
+                         distinguir volumen/produccion_total/part_ecp. Requiere regla de versión." }
+
+# ---------------------------------------------------------------------------
+# NIVELES temporales (N1-N4)  ·  grano: dia | mes
+# ---------------------------------------------------------------------------
+niveles:
+  N1_puntual:   "un valor (lookup)"
+  N2_acumulado: "Σ en [inicio,fin]"
+  N3_serie:     "GROUP BY periodo (lista)"
+  N4_variacion: "delta[t]-[t-1] sobre la serie"
+
+# ===========================================================================
+# VARIABLES — PRODUCCIÓN (default: INGESTA / daily_report_prod)
+# ===========================================================================
+productos:
+  produccion_crudo:
+    unidad: bbl
+    fuente: INGESTA
+    referencias: [REAL, PPTO, OPERATIVO, CONTABLE, P50, promedio_anio]
+    granos:
+      mes:  { confianza: alta, niveles: [N1, N2, N3, N4] }
+      dia:  { confianza: alta, niveles: [N1, N2, N3, N4], nota: "reconcilia 0,99; REAL only" }
+
+  produccion_gas:
+    unidad: MSCF                     # ✅ CONFIRMADO por el usuario 2026-08-02 (decisión de dominio)
+    unidad_confirmada: true
+    fuente: INGESTA
+    referencias: [REAL, PPTO, OPERATIVO, CONTABLE, P50, promedio_anio]
+    granos:
+      mes:  { confianza: alta, niveles: [N1, N2, N3, N4], nota: "reconcilia 1,01; REAL = VENTA-GRAVABLE+CONSUMO (disposición)" }
+      dia:  { confianza: alta, niveles: [N1, N2, N3, N4], nota: "REAL only" }
+
+  produccion_blancos:
+    unidad: bbl
+    fuente: INGESTA
+    referencias: [REAL, PPTO, OPERATIVO, CONTABLE, P50, promedio_anio]
+    granos:
+      mes:  { confianza: media, niveles: [N1, N2, N3, N4], descargo: "mensual = agregado 'GAS CONVERTIDO MME'" }
+      dia:  { confianza: no, motivo: "día (corrientes físicas ×4) NO reconcilia con mes (×2)=2,10. Solo MES." }
+
+  produccion_agua:
+    unidad: bbl
+    fuente: robustez                 # NO existe en INGESTA (las '19.440' eran nombres de campo)
+    grano: mes
+    alcance: ECP-operado
+    confianza: media
+    descargo: "universo robustez (flow_rates), ECP-neto, no reconcilia con el reporte"
+    ver_tambien: "robustez_especialista.produccion_pozo.water — MISMO dato a grano pozo (aquí = agregado a mes)"
+
+# ===========================================================================
+# VARIABLES — DERIVADAS
+# ===========================================================================
+derivadas:
+  gap:          { formula: "REAL - referencia", unidad: bbl, default_ref: PPTO, confianza: alta, grano: mes }
+  cumplimiento: { formula: "REAL / referencia * 100", unidad: "%", default_ref: PPTO, confianza: alta, grano: mes }
+  volumen_diferidas:
+    unidad: bbl
+    fuente: ECP_DIFERIDAS
+    productos: [crudo, gas]          # SIN blancos (no hay columna)
+    confianza: media
+    descargo: "histórico 2023→jul-2025; NO toca el mes en curso; por incidentes (grano día-pozo)"
+
+# ===========================================================================
+# VARIABLES — JERARQUÍA / CONTEOS  (fuente robustez; ECP-operado)
+# ===========================================================================
+conteos:
+  regla_global:
+    - "SIEMPRE COUNT(DISTINCT uwi) al nivel pedido — nunca SUM de subconteos (747 uwi en >1 campo)."
+    - "Jerarquía canónica desde core.map_campo_robustez (1 asignación/campo), NO de las columnas
+       aliaseadas de wells_attributes (GOR/POE≡VAO/ORIENTE; 112/118 campos multi-etiqueta)."
+    - "SOLO ECP-operado (81/139 campos). Toda respuesta declara: 'no incluye operados por terceros'."
+    - "Level-shift (J-5, opción A · educar suave): la 'gerencia' del reporte es la VP en robustez;
+       tender puente sin negar el término del usuario. Puente 1:muchos en 5 de 11 (data-driven)."
+  conteo_gerencias:   { fuente: map_campo_robustez, confianza: alta, alcance: ECP }
+  conteo_activos:     { fuente: map_campo_robustez, confianza: alta, alcance: ECP }
+  conteo_campos:      { fuente: map_campo_robustez, confianza: alta, alcance: ECP }
+  conteo_pozos:       { fuente: robustez_v02.ops.wells_attributes, metrica: "COUNT(DISTINCT uwi)",
+                        confianza: media, descargo: "conteo de REGISTRO (atemporal), no de producción" }
+  conteo_pozos_activos:
+    fuente: robustez_v02.ops.wells_attributes
+    confianza: media
+    regla: "partición 1 estado/pozo por prioridad ACT>SUS>INACT>ABA (grano uwi×zona; 27% mixtos)"
+    descargo: "estado de registro, no 'produjo en el mes'"
+  conteo_pozos_produjeron:
+    fuente: robustez_v02.ops.flow_rates
+    metrica: "COUNT(DISTINCT uwi) WHERE production_oil_day_month>0"
+    confianza: media
+    descargo: "universo robustez (ECP-neto, sin gas); NO reconcilia con el volumen del reporte"
+
+# ===========================================================================
+# VARIABLES — ROBUSTEZ ESPECIALISTA (pozo × mes; SIEMPRE rotular universo)
+# ===========================================================================
+robustez_especialista:
+  fuente: robustez_v02.ops
+  grano: [pozo, mes]
+  rango: [2025-01, 2026-06]
+  regla: "SIEMPRE rotular 'universo robustez, ECP-neto'. NUNCA mezclar con cifras del reporte."
+  variables:
+    produccion_pozo:  { tabla: flow_rates, medidas: [oil, water, blend], sin: [gas],
+                        nota: "water agregado a mes = productos.produccion_agua (mismo dato)" }
+    ebitda:           { tabla: financial_results, unidad: kUSD, solo: aceite }
+    breakeven:        { tabla: financial_results, unidad: USD_bbl }
+    revenue:          { tabla: financial_results, unidad: kUSD }
+    # NOPAT: NO existe (hay util_neta / ebitda, no NOPAT directo)
+
+# ===========================================================================
+# NO CUANTIFICABLE (rechazo explícito del clasificador — no runtime)
+# ===========================================================================
+no_soportado:
+  - { que: "producción de agua en el reporte diario", motivo: "no está en INGESTA (solo robustez)" }
+  - { que: "blancos a grano día",      motivo: "×2 irreconciliable (ver produccion_blancos.dia)" }
+  - { que: "pozos que produjeron, en unidades del reporte", motivo: "robustez no reconcilia con el fact" }
+  - { que: "gas por pozo",             motivo: "flow_rates no tiene gas" }
+  - { que: "NOPAT / margen / plata en INGESTA", motivo: "sin modelo económico; EBITDA solo en robustez, aceite" }
+  - { que: "mantenimientos / workover", motivo: "vocabulario reconocido, SIN fuente de datos (mock)" }
+  - { que: "diferidas de blancos",     motivo: "AVM_DATADIF no tiene columna de blancos perdido" }
+  - { que: "año / trimestre / semana", motivo: "v1 solo parsea MES" }
+
+# ===========================================================================
+# REGLAS GLOBALES DE HONESTIDAD (aplican a toda respuesta)
+# ===========================================================================
+reglas:
+  - "HUELLA PRIMERO: la respuesta acompaña el número con registros/rango real/días sin reporte."
+  - "DECLARAR LA REFERENCIA usada (PPTO por defecto) — sin ella, cumplimiento es ambiguo."
+  - "P50/Compromiso SOLO a nivel ECP-global (kbpe). NUNCA ofrecer 'vs P50' a nivel campo/activo/gerencia."
+  - "MES EN CURSO = PROYECCIÓN (T-1): distinguir 'va acumulado X (N días)' de 'proyecta cerrar Y'."
+  - "CERO TRAICIONERO: SIN_REPORTE ≠ 0; los huecos por entidad no se coaccionan a 0 (se excluyen y reportan)."
+  - "VARIACIÓN inter-anual (T-3): avisar del salto 2025→2026 (~+30%, posible cambio de alcance)."
+  - "DEFAULT producto por VOLUMEN dominante de la entidad (no 'aceite' fijo) — mata el riesgo Hocol."
+  - "TECHO de datos: recortar al disponible y declararlo (día→2026-05-17)."
+
+# ===========================================================================
+# NIVEL N5 — RANKING (2026-08-04) · eje ORTOGONAL a N1-N4
+# ===========================================================================
+ranking:
+  descripcion: "Ordena VARIAS entidades por magnitud dentro de un mes. v1 = GLOBAL ECP."
+  niveles_rankeables: [campo, activo]     # gerencia/VP diferidos (level-shift S28); pozo sin dato
+  metricas: [real, gap]                   # cumplimiento-% fuera (la query ya trae vreal/vppto)
+  direcciones: [top, bottom]
+  semantica_gap: "bottom = mayor FALTANTE (gap más negativo) y es el DEFAULT; top = mayor EXCEDENTE.
+                  NO se modela como asc/desc: esa forma devolvía lo contrario a lo pedido."
+  top_n_default: 5                        # singular ('qué campo') = 1; máx 20
+  terceros: "INCLUIDOS en ranking de campo, con operador rotulado si no es Ecopetrol (verificado
+             contra BD 2026-08-04: QUIFA/Frontera es #3 en crudo-mayo). El nivel activo no rotula
+             operador (map_campo_activo no lo modela)."
+  bottom_n: "filtra real>0 y DECLARA los N sin registro (paro o hueco: a grano mes no distinguibles)."
+  proyeccion: "el mes en curso se rankea por cierre PROYECTADO (T-1) y se rotula."
+  scoped_diferido: "ranking dentro de una entidad ('top campos del activo X') -> v2 (D-D5)."

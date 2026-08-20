@@ -1,0 +1,9 @@
+# clasificacion_feedback.yaml — Umbrales del Control 2 (señales indirectas → sospecha)
+# La sospecha NO corrige nada: solo prioriza la cola de revisión (Control 3).
+# Similitud por ratio de tokens compartidos (Jaccard sobre texto normalizado) — P3:
+# NO pg_trgm (la migración 007 sigue sin aplicar; una señal débil no lo justifica).
+
+similitud_reformulacion: 0.70    # Jaccard mínimo para considerar "la misma pregunta"
+ventana_reformulacion_seg: 120   # reformulación o cambio a v1 dentro de esta ventana
+ventana_abandono_seg: 600        # sin actividad tras 'desconocido' → sospecha de abandono
+escaneo_dias: 7                  # H7: escanear solo 'pendiente' de los últimos N días

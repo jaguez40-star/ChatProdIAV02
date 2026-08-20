@@ -1,0 +1,52 @@
+# vocabulario_dominio.yaml — Filtro de dominio (motor_Q.md §1.2, Motor Q v2 · Fase 1)
+#
+# DOS NIVELES DE CERTEZA (2026-08-02). El filtro ya no trata todas las palabras igual:
+#
+#   vocabulario  (FUERTE)      -> términos que NO existen fuera del petróleo. Su sola presencia
+#                                 confirma el dominio: se enruta directo, sin gastar LLM.
+#   estructural  (DÉBIL)       -> entidades centrales del modelo que además son sustantivos
+#                                 comunes del español (campos de estudio, activos financieros,
+#                                 pozos sépticos). Confirman el dominio SOLO tras pasar por la
+#                                 Capa 2, que sí entiende el contexto gramatical.
+#
+# POR QUÉ existe la segunda lista (verificado 2026-08-02, no de memoria): "campos por debajo de
+# la meta" (dominio) y "campos de la dieta mediterránea" (ajena) tienen la MISMA evidencia léxica
+# — la palabra "campos". Ninguna lista puede separarlas; solo el análisis de contexto puede.
+# NO se elimina ninguna palabra: quitar CAMPOS/POZOS/ACTIVOS mataría las preguntas genéricas
+# legítimas sin entidad nombrada ("¿cuántos campos hay?"). Decisión del usuario.
+#
+# Fragmentos REGEX con límite de palabra (\b...\b) sobre texto NORMALIZADO (norm(): UPPER, sin
+# acentos). CONSERVADOR: si una palabra es ambigua, va en `estructural`, no en `vocabulario`.
+#
+# ⚠ Se carga UNA vez al arranque del backend → editar exige REINICIAR los backends.
+
+version: 2
+
+# --- FUERTE: inequívocas del dominio -> enrutan directo -------------------------------------
+vocabulario:
+  - PRODUCCION
+  - CRUDO
+  - ACEITE
+  - GAS
+  - BLANCOS
+  - BARRILES?
+  - BBL
+  - BOPD
+  - MSCF
+  - KBPE
+  - DIFERIDAS
+  - MANTENIMIENTOS?
+  - PRESUPUESTO
+  - PPTO
+  - P50
+  - EBITDA
+  - NOPAT
+  - WORKOVER
+  - NV04
+  - CIERRE
+
+# --- ESTRUCTURAL: entidades del modelo, pero también español común -> exigen Capa 2 ---------
+estructural:
+  - CAMPOS?
+  - POZOS?
+  - ACTIVOS?
