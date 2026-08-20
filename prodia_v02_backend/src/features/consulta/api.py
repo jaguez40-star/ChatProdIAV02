@@ -32,9 +32,11 @@ from src.core.logger import get_logger
 # El motor recibe estos servicios como parámetros y nunca conoce su origen.
 from src.features.analisis.repositories import AnalisisRepository
 from src.features.analisis.services_desempeno import DesempenoService, escenario_mes
-from src.features.consulta import libreta, maquina, resolver
+from src.features.consulta import libreta, maquina, plantilla, resolver, subrouter
 from src.features.consulta.ejecutor import ejecutar
 from src.features.consulta.memoria import MEMORIA
+from src.features.consulta.niveles import _como_dict
+from src.features.consulta.normaliza import norm
 from src.features.consulta.schemas import (
     PreguntarIn,
     RespuestaQ,
@@ -64,6 +66,23 @@ RESPUESTAS_COMUNES: dict[int | str, dict[str, str]] = {
     401: {"description": "No autenticado — falta la cookie de sesión o es inválida"},
     503: {"description": "PostgreSQL (`db_prod`) no disponible"},
 }
+
+
+def _por_nivel_nombrado(
+    texto: str, candidatos: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """El candidato cuyo nivel el usuario nombró en la frase, si hay uno solo.
+
+    🔑 Cierra el bucle de la desambiguación. Ante «CASTILLA existe como activo,
+    campo y fuente» el usuario responde «campo castilla» — y sin esto la
+    pregunta se repite indefinidamente, porque el texto vuelve a resolver a
+    tres candidatos.
+    """
+    t = f" {norm(texto)} "
+    coincidencias = [
+        c for c in candidatos if f" {norm(str(c.get('nivel') or ''))} " in t
+    ]
+    return coincidencias[0] if len(coincidencias) == 1 else None
 
 
 def _jerarquia(entidad: str, db: Session) -> dict[str, Any] | None:
@@ -151,6 +170,77 @@ def _jerarquia(entidad: str, db: Session) -> dict[str, Any] | None:
     }
 
 
+def _analisis(texto: str, entidad: str, db: Session) -> dict[str, Any] | None:
+    """Responde «por qué», «cómo va a cerrar» y «cómo va contra la meta».
+
+    🔑 Q1 en su forma más pura: **Python calcula, la plantilla redacta.** El
+    texto sale de `plantilla`, que recibe las cifras ya computadas por el
+    servicio de desempeño de F2. Ninguna cifra pasa por un modelo.
+
+    Cubre tres de las cinco sub-intenciones. `diferidas` y `economia` necesitan
+    otras fuentes (`db_diferidas`, `db_ops`) y se cablean aparte; hasta
+    entonces se declara, no se finge.
+    """
+    sub = subrouter.sub_intencion(texto)
+    if sub in ("diferidas", "economia"):
+        return {
+            "mensaje": (
+                f"El análisis de {sub} para «{entidad}» todavía no está "
+                "disponible en esta versión. Puedo con causas del rezago, "
+                "proyección de cierre y avance contra la meta."
+            ),
+            "panel": None,
+        }
+
+    resuelta = resolver.resolver_unico(entidad, db)
+    nombre = str((resuelta or {}).get("valor") or entidad).strip().upper()
+    nivel = str((resuelta or {}).get("nivel") or "") or None
+
+    servicio = DesempenoService(AnalisisRepository(db))
+    datos = _como_dict(servicio.desempeno(entidad=nombre, nivel=nivel))
+
+    if not datos or datos.get("sin_datos") or datos.get("encontrada") is False:
+        # Se declara la ausencia; no se redacta un análisis sobre la nada.
+        return {
+            "mensaje": (
+                f"No hay datos de producción para «{nombre}» en el periodo "
+                "vigente, así que no puedo analizar su desempeño."
+            ),
+            "panel": None,
+        }
+
+    slots = extraer_slots(texto, nombre)
+    # Solo se acota a un producto si el usuario lo NOMBRÓ. Cuando el motor lo
+    # asumió por defecto lo deja anotado en `defaults_asumidos`, y en ese caso
+    # el análisis cubre los tres productos: acotarlo a crudo porque es el
+    # default silenciaría un rezago de gas que el usuario no excluyó.
+    producto = (
+        slots.get("producto")
+        if "producto" not in (slots.get("defaults_asumidos") or [])
+        else None
+    )
+
+    if sub == "proyeccion":
+        mensaje = plantilla.proyeccion(datos, nombre)
+    else:
+        # `causal` y `referencia` comparten narrativa: dónde está el faltante.
+        mensaje = plantilla.causal(datos, nombre, producto)
+
+    return {
+        "mensaje": mensaje,
+        "panel": {
+            "tipo": "analiza_foco",
+            "datos": {
+                "entidad": nombre,
+                "nivel": nivel,
+                "segmento": sub,
+                "periodo": datos.get("periodo_label") or datos.get("periodo"),
+                "productos": [producto] if producto else [],
+            },
+        },
+    }
+
+
 def _usuario_de_la_sesion(request: Request) -> str | None:
     """Nombre del usuario autenticado, desde la cookie ya validada."""
     usuario = getattr(request.state, "user", None)
@@ -204,9 +294,7 @@ def preguntar(
         máquina ya envuelve esta llamada, pero un fallo aquí tampoco debe
         perder la clasificación, que sí es correcta y sí se registra.
         """
-        if nucleo["grupo"] not in ("cuantificar", "jerarquizar"):
-            # `analizar` se cablea después: hoy conserva el mensaje base en vez
-            # de fingir una respuesta.
+        if nucleo["grupo"] not in ("cuantificar", "jerarquizar", "analizar"):
             return None
 
         entidad = nucleo.get("entidad_cruda")
@@ -216,22 +304,34 @@ def preguntar(
         if nucleo["grupo"] == "jerarquizar":
             return _jerarquia(str(entidad), db_prod)
 
+        if nucleo["grupo"] == "analizar":
+            return _analisis(texto, str(entidad), db_prod)
+
         candidatos = resolver.resolver(str(entidad), db_prod)
         if not candidatos:
             hit = resolver.buscar_en_texto(texto, db_prod)
             candidatos = list(hit[1]) if hit else []
         if not candidatos:
             return None
+
         if len(candidatos) > 1:
-            # Colisión genuina: contrapreguntar es más honesto que elegir uno.
-            nombres = ", ".join(sorted({str(c.get("nivel", "?")) for c in candidatos}))
-            return {
-                "mensaje": (
-                    f"«{entidad}» existe en más de un nivel ({nombres}). "
-                    "¿A cuál te refieres?"
-                ),
-                "panel": None,
-            }
+            # 🔑 Si el usuario YA dijo el nivel en esta misma frase —«campo
+            # castilla», que es justo como se responde a la contrapregunta—, la
+            # colisión está resuelta y preguntar otra vez es un bucle.
+            elegido = _por_nivel_nombrado(texto, candidatos)
+            if elegido is None:
+                niveles = ", ".join(
+                    sorted({str(c.get("nivel", "?")) for c in candidatos})
+                )
+                return {
+                    "mensaje": (
+                        f"«{entidad}» existe en más de un nivel ({niveles}). "
+                        f"¿A cuál te refieres? Respóndeme por ejemplo "
+                        f"«campo {entidad}»."
+                    ),
+                    "panel": None,
+                }
+            candidatos = [elegido]
 
         resuelta = candidatos[0]
         slots = extraer_slots(texto, str(resuelta.get("valor") or entidad))
