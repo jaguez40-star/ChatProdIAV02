@@ -21,16 +21,20 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.core.config import get_settings
-from src.core.exceptions import register_exception_handlers
+from src.core.exceptions import http_exception_handler, register_exception_handlers
 from src.core.logger import get_logger, setup_logging
 from src.features.analisis.api import router as analisis_router
 from src.features.auth.api import router as auth_router
 from src.features.consulta import catalogo as catalogo_consulta
 from src.features.consulta.api import router as consulta_router
+from src.features.consulta.api_revision import router as consulta_revision_router
 from src.features.diferidas.api import router as diferidas_router
 from src.features.ebitda.api import router as ebitda_router
 from src.features.ingesta.api import router as ingesta_router
@@ -191,6 +195,10 @@ app.include_router(diferidas_router, prefix=API_PREFIX)
 app.include_router(mantenimientos_router, prefix=API_PREFIX)
 app.include_router(ingesta_router, prefix=API_PREFIX)
 app.include_router(consulta_router, prefix=API_PREFIX)
+# Test Clas (F5): mismo prefijo de feature, router aparte porque es admin-only.
+# Va DESPUÉS del de F4 para que `/consulta/revision/...` no sea capturado por
+# ninguna ruta con parámetro de aquél.
+app.include_router(consulta_revision_router, prefix=API_PREFIX)
 
 
 @app.get(f"{API_PREFIX}/health", tags=["Health"])
@@ -207,3 +215,63 @@ async def health_check() -> dict[str, Any]:
         "database_ops": "connected" if db_ops_ok else "disconnected",
         "environment": settings.app_env,
     }
+
+
+# ── F6 · El frontend compilado (B-4) ──────────────────────────────────────
+#
+# 🔑 Va DESPUÉS de todos los routers a propósito. Montado en "/", `StaticFiles`
+# atrapa cualquier ruta que llegue hasta él: si se montara antes, se tragaría
+# `/api/v1/*` y la API entera devolvería 404.
+#
+# 🔑 El `dist/` PUEDE NO EXISTIR, y eso no es un error. En desarrollo nadie
+# compila el frontend, y el hook `gen-types-check` importa `src.main` en CADA
+# commit que toque el backend (AP-4). Si este bloque reventara sin `dist/`,
+# bloquearía todos los commits del repo. Por eso se monta solo si está, y se
+# declara en el log cuando no.
+def _montar_frontend() -> None:
+    if not settings.serve_static:
+        return
+
+    directorio = settings.static_path
+    if not (directorio / "index.html").is_file():
+        logger.warning(
+            "static_no_montado",
+            directorio=str(directorio),
+            motivo="no existe index.html — ¿falta `pnpm build`?",
+        )
+        return
+
+    # `html=True` sirve index.html en la raíz y devuelve 404 para lo que no
+    # exista — de ahí el manejador de abajo, que completa el fallback SPA.
+    app.mount("/", StaticFiles(directory=directorio, html=True), name="static")
+    logger.info("static_montado", directorio=str(directorio))
+
+
+@app.exception_handler(StarletteHTTPException)
+async def spa_fallback(request: Request, exc: StarletteHTTPException) -> Response:
+    """Devuelve `index.html` en las rutas del router de React.
+
+    🔑 El frontend usa `createBrowserRouter`: `/analisis` es una ruta REAL del
+    navegador, no un ancla. Sin este manejador, recargar la página ahí busca un
+    fichero `analisis` que no existe y el servidor responde 404 — la app se ve
+    rota justo al refrescar, que es lo primero que hace cualquiera.
+
+    Solo aplica a 404 de navegación. La API conserva su contrato de error
+    uniforme intacto: un 404 bajo `/api/` sigue siendo un 404 con su JSON y su
+    `correlation_id`.
+    """
+    ruta = request.url.path
+    es_navegacion = (
+        exc.status_code == 404
+        and settings.serve_static
+        and not ruta.startswith(API_PREFIX)
+        and "text/html" in request.headers.get("accept", "")
+    )
+    if es_navegacion:
+        indice = settings.static_path / "index.html"
+        if indice.is_file():
+            return FileResponse(indice)
+    return await http_exception_handler(request, exc)
+
+
+_montar_frontend()

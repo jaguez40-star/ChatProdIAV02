@@ -71,6 +71,17 @@ PUBLIC_PREFIXES: tuple[str, ...] = (
 )
 
 
+def _es_recurso_del_frontend(path: str) -> bool:
+    """¿Es una petición del navegador al frontend, y no a la API?
+
+    Se decide por exclusión —todo lo que NO cuelga de `/api/`— y solo cuando
+    el backend sirve los estáticos. Definirlo al revés (lista de extensiones
+    conocidas) fallaría con cada tipo de fichero nuevo que Vite emitiera, y el
+    síntoma sería un 401 en un recurso suelto: difícil de diagnosticar.
+    """
+    return get_settings().serve_static and not path.startswith("/api/")
+
+
 class AuthMiddleware(BaseHTTPMiddleware):
     """Verifica cookie firmada. Inyecta user en request.state. Hace sliding refresh."""
 
@@ -82,6 +93,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         if path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES):
+            return await call_next(request)
+
+        # F6/B-4 — el frontend compilado es público, y tiene que serlo.
+        #
+        # 🔑 Sin esto, servir el `dist/` desde el backend deja la app
+        # INARRANCABLE: un usuario sin sesión pide `/` y recibe un 401 en vez
+        # de la pantalla de login, así que no tiene forma de autenticarse. Ni
+        # siquiera cargarían el HTML ni el CSS de esa pantalla.
+        #
+        # No abre ningún agujero: los ficheros son los mismos que hoy sirve
+        # Vite sin pasar por el backend. Deny-by-default sigue intacto donde
+        # importa — TODO `/api/v1/*` no listado arriba exige cookie válida, y
+        # esa es la frontera que protege los datos.
+        if _es_recurso_del_frontend(path):
             return await call_next(request)
 
         token = request.cookies.get(SESSION_COOKIE_NAME)

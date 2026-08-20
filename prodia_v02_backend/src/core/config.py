@@ -160,6 +160,24 @@ class Settings(BaseSettings):
     # ── CORS ──────────────────────────────────────────────────────────────
     cors_origins: str = "http://localhost:6033"
 
+    # ── F6 · Servir el frontend compilado (B-4) ─────────────────────────────
+    # En DESARROLLO el proxy `/api` del dev server de Vite resuelve todo y esto
+    # queda apagado. En PRODUCCIÓN no hay dev server: alguien tiene que servir
+    # el `dist/`, y `apiClient` usa `baseUrl: '/'` (relativo), así que el
+    # frontend SOLO alcanza al backend si ambos comparten origen.
+    #
+    # Con `serve_static=true` el backend sirve el `dist/` y todo vive en UN
+    # puerto: se acaba el problema de CORS y `baseUrl: '/'` funciona sin tocar
+    # una línea del frontend.
+    serve_static: bool = False
+    # Relativa a prodia_v02_backend/ si no es absoluta.
+    static_dir: str = "../prodia_v02_frontend/dist"
+
+    @property
+    def static_path(self) -> Path:
+        p = Path(self.static_dir)
+        return p if p.is_absolute() else (_BACKEND_DIR / p).resolve()
+
     @property
     def is_dev(self) -> bool:
         return self.app_env == "development"
