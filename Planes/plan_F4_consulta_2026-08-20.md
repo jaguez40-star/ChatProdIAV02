@@ -630,18 +630,30 @@ cd .. && pnpm test:front                         # DT-6: este script SÍ evalúa
 
 | Métrica | Hoy | Criterio en F4 |
 |---|---|---|
-| Tests backend | **559** (+33 deselected por el marcador `muestras` de F3) | Suben; ninguno sale a la red |
-| Cobertura backend | **81,51 %** — gate en verde tras cerrar F3 (§0.4.1) | **No baja de 78 %** (AP-1) |
-| Tests frontend | 39 archivos, **84,98 %** | No baja de 80 % × 4 |
-| Bundle inicial | **331,69 kB** | ≤348 kB (+5 %, AP-8) |
-| Rutas en OpenAPI | 25 | +2 (`/preguntar`, `/veredicto`) |
+| Tests backend | 559 al arrancar → **819 al cerrar F4** | ✅ ninguno sale a la red |
+| Cobertura backend | 81,51 % → **83,86 %** | ✅ SUBIÓ; AP-1 controlado |
+| Tests frontend | 39 archivos → **50 archivos, 291 tests, 84,04 %** | ✅ gate 80 % × 4 |
+| Bundle inicial | 331,69 kB → **331,92 kB** · `ConsultaPage` 24,2 kB | ✅ AP-8 con holgura |
+| Rutas en OpenAPI | 28 → **30** | ✅ `/preguntar` y `/veredicto` |
 
-**Anclas de paridad** (criterio de aceptación, CLAUDE.md §6):
-- `clasificacion_golden` ≥90 % sobre **75** casos.
-- `cuantificar_golden` ≥90 % sobre 24.
-- `analizar_golden` ≥90 % sobre 10.
-- Los **3.412 líneas de tests portados** pasan contra el código nuevo — como en F2, es la
-  validación más fuerte de que la conducta se conserva.
+**Anclas de paridad** (criterio de aceptación, CLAUDE.md §6). Medidas el 2026-08-20 en una
+máquina **fuera del dominio**, es decir, sin Ollama accesible:
+
+| Conjunto | Resultado | Estado |
+|---|---|---|
+| `analizar_golden` (10 casos) | **10/10 = 100 %** | ✅ pasa el gate |
+| `cuantificar_golden` (24 casos) | **24/24 = 100 %** | ✅ pasa el gate |
+| `clasificacion_golden` (75 casos) | **61/75 = 81 %** | ⏳ pendiente de correr con LLM |
+
+El 81 % **no indica un defecto del porte**, y el desglose por capa lo demuestra: 8 casos de
+Capa 2 pura + 13 con `regex+llm_fallo` = **21 que necesitan el modelo**. Los 61 aciertos
+salen enteros del camino determinista.
+
+🔑 Ese `regex+llm_fallo: 13` es además la **prueba de que D4 funciona**: sin LLM, esos 13
+conservaron el grupo de la regex en vez de perderse. Una caída del modelo degrada al
+comportamiento previo, que es exactamente lo que la regla busca.
+
+**Pendiente**: correr `clasificacion` en la máquina de pruebas, con VPN y Ollama.
 
 ---
 
