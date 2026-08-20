@@ -1,6 +1,6 @@
 # Plan F5 — Test Clas · laboratorio del clasificador
 
-> **Estado del plan: v3 — reauditado contra F4 ya entregada.** Los pasos 1-3 del flujo de 6
+> **Estado del plan: v4 — auditado contra los pipelines ejecutándolos.** Los pasos 1-3 del flujo de 6
 > (Mapeo → Auditoría → Diagnóstico) se ejecutaron contra el código real: el origen en
 > `12112025_prodIA/`, el destino en `ProdIA_V02/`, y **los seis pipelines configurados**
 > (`ci.yml`, `.pre-commit-config.yaml`, `pyproject.toml`, `vitest.config.ts`, `alembic.ini`,
@@ -9,6 +9,20 @@
 > **✅ F5 YA ES EJECUTABLE.** F4 cerró el 2026-08-20 (commit `76167ad`). Las anclas de §3 se
 > corrieron contra el código entregado y **F5 tiene vía libre**, con cuatro ajustes que están
 > en §0.0. Queda una condición de negocio, no técnica: ver §0.0.5 (el golden al 81 %).
+>
+> ---
+>
+> ### Qué cambió de v3 a v4 — la auditoría **ejecutando** los pipelines
+>
+> v3 razonó sobre los pipelines leyéndolos. v4 los **corrió**. Cinco hallazgos nuevos:
+>
+> | # | Hallazgo | Efecto |
+> |---|---|---|
+> | **🔴 AP-12** | **Dos tests de F4 fijan como correcto justo lo que F5 debe corregir.** `test_los_filtros` afirma `("pendientes", 2)` excluyendo la sospecha, y `test_un_filtro_desconocido_no_rompe` afirma que un filtro inventado *"degrada a todas"*. Al aplicar §0.0.3/§0.0.4, **estos dos tests se ponen rojos** | B1 **modifica dos tests existentes**, no solo código. Sin saberlo, el ejecutor creería haber roto algo |
+> | **🟢 AP-13** | **AP-1 (la trampa de escala) queda desactivado, medido.** Cobertura hoy **83,86 %**, gate 75 %. Simulado: aunque F5 entrara con **0 % de cobertura**, el total quedaría en 82,11 % | La regla «verificar cobertura al cerrar cada bloque» deja de ser crítica. Se mantiene por higiene, no por riesgo |
+> | **🟡 AP-14** | `consulta/api.py` está al **43 % de cobertura** — el módulo peor cubierto de la feature. F5 añade endpoints al mismo paquete | El listón lo pone F5: sus endpoints nacen con test de 403/422, que es más de lo que tiene el vecino |
+> | **🟡 AP-15** | **CLAUDE.md está desactualizado**: §10 dice que F4 está *"Sin empezar a codificar"* y F1 *"Pendiente"*, cuando ambas están entregadas | B8 corrige §10 y §11 para F1, F4 **y** F5. Un plan que se apoya en una memoria falsa desorienta a la siguiente fase |
+> | **🟢 AP-16** | `api.d.ts` **está al día** (30 rutas) y `export_openapi.py` corre limpio: el hook `gen-types-check` pasaría hoy | Confirma que AP-11 es un paso mecánico, no una deuda |
 >
 > ---
 >
@@ -113,6 +127,46 @@ contradice a sí mismo.
 **Decisión del plan: se restaura la semántica del origen.** «Pendientes» = *todo lo que falta
 por juzgar*, sospechas incluidas. Con un test que lo fija, porque es una decisión que se puede
 volver a perder en un refactor.
+
+#### 0.0.4-bis 🔴 AP-12 — Dos tests de F4 **fijan como correcto** lo que F5 debe corregir
+
+Este es el hallazgo que hace falta leer antes de tocar `libreta.py`. Las correcciones de §0.0.3
+y §0.0.4 **pondrán rojos dos tests que hoy están verdes**, y eso es lo esperado, no un error:
+
+```python
+# tests/unit/test_consulta_libreta.py:216-225
+@pytest.mark.parametrize(
+    ("filtro", "esperadas"), [("pendientes", 2), ("sospecha", 1), ("todas", 3)]
+)                                #             ↑ EXCLUYE la sospecha
+def test_los_filtros(db, filtro, esperadas):
+    ...
+
+# tests/unit/test_consulta_libreta.py:238-241
+def test_un_filtro_desconocido_no_rompe(db):
+    """Degrada a "todas" en vez de lanzar: es un parámetro de consulta."""
+    _registrar(db, texto="a")
+    assert len(libreta.listar(db, filtro="inventado")["filas"]) == 1
+```
+
+El segundo es el más instructivo: su docstring **razona** el fallback mudo (*"es un parámetro de
+consulta"*) y lo convierte en conducta protegida. Ese razonamiento es defendible en aislamiento
+—y por eso pasó la revisión de F4— pero se cae al mirar quién consume el dato: la libreta
+alimenta el golden, y un filtro con errata que devuelve todo hace que el revisor crea estar
+viendo sospechas cuando ve tráfico entero.
+
+**Qué hacer, exactamente:**
+
+| Test | Acción | Nuevo valor |
+|---|---|---|
+| `test_los_filtros` | **Modificar** el parámetro | `("pendientes", 3)` — las 3 filas sin juzgar, sospecha incluida |
+| `test_un_filtro_desconocido_no_rompe` | **Sustituir** por su contrario | `test_un_filtro_desconocido_es_un_error_del_llamador`: `pytest.raises(KeyError)` en la capa de datos, y **422** en el endpoint |
+| `test_las_sospechas_van_primero` | **No tocar** | Sigue siendo cierto y valioso |
+| `test_el_limite_se_acota` | **No tocar** | El acotado de `limite` se conserva (§5.2 solo añade `ge/le` en el borde HTTP) |
+
+**Regla para el ejecutor:** cuando un test existente se ponga rojo por una corrección de este
+plan, **no se borra ni se ajusta el código para que pase**. Se cambia el test, y el commit
+explica por qué la conducta anterior era incorrecta. Un test rojo aquí es la señal de que la
+corrección llegó al sitio correcto.
 
 #### 0.0.5 ⚠️ Condición de negocio antes de empezar: el golden está al 81 %
 
@@ -319,6 +373,11 @@ Leídos y medidos uno a uno el 2026-08-20. Los cinco últimos son los que **corr
 | **AP-9** | `core/exceptions.py:51-60` | 🔴 v1 prometía «estrenar `code` y cerrar DT-4». `http_exception_handler` **descarta** cualquier `code`: solo `database_exception_handler` emite uno. Cumplirlo exigía un subsistema de excepciones de dominio | `Literal[...]` en el query param → FastAPI valida y devuelve **422 con `errors[]`**, que ya está en el contrato. Cero código nuevo. **DT-4 sigue abierta** y el plan lo dice (§5.2) |
 | **AP-10** | `conftest.py:68-84` | 🔴 El único usuario sembrado es `test.user` con `is_admin=1`. **No hay forma de escribir el test de 403** sin tocar el seed compartido por 559 tests | Fixture **aditivo** `usuario_no_admin` que inserta su propia fila; `_seed_integration_db` **no se toca** (§8) |
 | **AP-11** | Hook `gen-types-check`: `pnpm run gen:types && git diff --exit-code …/api.d.ts` | Se dispara con `^prodia_v02_backend/src/(main\|features)/.*\.py$` — o sea, con **todo** lo que toca F5. Si el ejecutor no regenera y **commitea** `api.d.ts`, el commit se rechaza | Paso explícito al final de B3 y en §8 |
+| **AP-12** | `pytest` — **ejecutado**, 819 tests | 🔴 **Dos tests de F4 protegen la conducta que F5 corrige** (`test_los_filtros`, `test_un_filtro_desconocido_no_rompe`). Se pondrán rojos al aplicar §0.0.3/§0.0.4 | §0.0.4-bis dice cuál modificar y cuál sustituir, con los valores nuevos. **B1 toca tests, no solo código** |
+| **AP-13** | `pytest --cov=src --cov-fail-under=75` — **ejecutado** | 🟢 **La trampa de escala (AP-1) no aplica a F5.** Medido: cobertura **83,86 %**, gate 75 %, margen 8,86 puntos. Simulado con 300 statements nuevos: al 0 % de cobertura el total sería 82,11 % — **sigue verde** | Se **degrada** la regla «cobertura al cerrar cada bloque» de crítica a higiénica. F5 no puede hundir el gate ni queriendo |
+| **AP-14** | Cobertura por módulo | 🟡 `consulta/api.py` está al **43 %**, el peor de la feature. F5 añade endpoints al mismo paquete | No se arregla el de F4 (regla 8f), pero los de F5 **nacen con test de 403 y 422**. El listón lo pone la fase nueva |
+| **AP-15** | `CLAUDE.md` §10 | 🟡 **La memoria del proyecto miente**: dice que F4 está *"Sin empezar a codificar"* y F1 *"Pendiente"*, con ambas entregadas | B8 corrige §10 y §11 **para F1, F4 y F5**. §0 exige planificar contra el código real, no contra la memoria — pero la memoria es lo primero que lee el siguiente |
+| **AP-16** | `export_openapi.py` + `gen:types` — **ejecutados** | 🟢 30 rutas exportadas, `api.d.ts` **sin diff**: el hook pasaría hoy. Cero I/O al importar sigue respetado tras F4 | Confirma que AP-11 es mecánico. Si tras B3 hay diff, es de F5 y hay que commitearlo |
 
 ### 0.5 Lo que este plan NO va a repetir del origen
 
@@ -517,6 +576,18 @@ tipada, ruff no tiene nada que advertir y el `noqa` documenta en vez de silencia
 |---|---|---|
 | `scripts/revisar_lote.py` | `golden/revisar_lote.py` (90) | CLI interactivo del Control 3 |
 | `scripts/cargar_golden_libreta.py` | `cargar_golden_libreta.py` (78) | Idempotente por `usuario='golden'` |
+
+### 4.2-bis Tests existentes que F5 **modifica** (AP-12)
+
+No son daños colaterales: son parte del entregable.
+
+| Archivo | Test | Acción |
+|---|---|---|
+| `tests/unit/test_consulta_libreta.py:216` | `test_los_filtros` | `("pendientes", 2)` → **`("pendientes", 3)`** |
+| `tests/unit/test_consulta_libreta.py:238` | `test_un_filtro_desconocido_no_rompe` | **Sustituir** por su contrario (§0.0.4-bis) |
+
+Todo lo demás de ese archivo (registrar, veredictos, sospecha, orden, límite) **se conserva
+intacto**: 241 líneas de las que F5 toca dos tests.
 
 ### 4.3 Migraciones
 
@@ -788,25 +859,36 @@ pasar al siguiente.
 | # | Bloque | Entrega | Se verifica con |
 |---|---|---|---|
 | **B0** | Prerequisitos | §3 en verde · **§3.1 el golden ≥90 %** · `types-PyYAML` declarado (AP-7) | Los `grep -c` de §3 + `uv run mypy src` + `golden_consulta.py` |
-| **B1** | `libreta.py` corregido y ampliado | **Corregir `_FILTROS` y `listar`** (§0.0.3, §0.0.4) + añadir el **resumen de KPIs** con `pct_capa1` | Tests con `db_auth` en memoria (L2). Incluye §5.3 y **un test que fija que «pendientes» incluye las sospechas** |
+| **B1** | `libreta.py` corregido y ampliado | **Corregir `_FILTROS` y `listar`** (§0.0.3, §0.0.4) · **modificar los 2 tests de AP-12** (§4.2-bis) · añadir el **resumen de KPIs** con `pct_capa1` | Los 819 tests en verde **con los dos modificados**, no saltados. Incluye §5.3 y un test que fija que «pendientes» incluye las sospechas |
 | **B2** | `senales.py` | `similitud` (portada literal, con sus tests del origen) + señales 1 y 3 con fechas en Python | **Tests sin BD** para las ventanas; con BD en memoria para `escanear()` |
 | **B3** | `api_revision.py` | Los 3 endpoints con `require_admin`, en **router propio** (no tocar `api.py` de F4). **Termina con `pnpm gen:types` y `api.d.ts` commiteado** (AP-11) | Test de **403 no-admin** (fixture de AP-10), **422** por filtro inválido, y **que `/consulta/preguntar` de F4 SIGA siendo accesible a un no-admin** — la regresión que delataría un `require_admin` mal puesto · `git diff --exit-code api.d.ts` limpio |
 | **B4** | Scripts + **datos reales** | `revisar_lote.py` + `cargar_golden_libreta.py`, y **cargar los 75 casos del golden en una libreta de verdad** | Idempotencia (2ª pasada = mismos conteos) y cola vacía de pendientes |
 | **B5** | Frontend base | tipos, mappers, service, `useLibreta` con rollback | Test de rollback (§5.5) |
 | **B6** | `ChatPrueba` | Individual + lote en serie con progreso | Tests de componente |
 | **B7** | `TablaLibreta` + teclado | Filtros, cursor, calificación, confirmación acotada | `userEvent.keyboard` (AP-4) |
-| **B8** | `RutaAdmin` + cierre | Guarda **nueva** (no tocar `ProtectedRoute`), entrada de menú, CLAUDE.md §6/§10/§11, commit | Verificación final de §8 |
+| **B8** | `RutaAdmin` + cierre | Guarda **nueva** (no tocar `ProtectedRoute`), entrada de menú, **CLAUDE.md §6/§10/§11 corrigiendo también F1 y F4** (AP-15), commit | Verificación final de §8 |
 
-**Dos reglas de orden, ambas aprendidas pagando:**
+**Tres reglas de orden, todas aprendidas pagando:**
 
-1. **B3 no termina sin regenerar `api.d.ts`.** El hook `gen-types-check` compara con
+1. **B1 toca tests existentes, y eso es correcto** (AP-12). Cuando `test_los_filtros` y
+   `test_un_filtro_desconocido_no_rompe` se pongan rojos, la respuesta **no** es revertir la
+   corrección ni marcarlos `skip`: es cambiarlos, y explicar en el commit por qué la conducta
+   anterior estaba mal. Un test rojo ahí es la prueba de que la corrección llegó a su sitio.
+2. **B3 no termina sin regenerar `api.d.ts`.** El hook `gen-types-check` compara con
    `git diff --exit-code`: si no se commitea, el commit se rechaza y el ejecutor pierde el turno
-   depurando el hook en vez de la feature.
-2. **B4 va antes que el frontend, no al final.** En F1 y en F3, el bloque contra datos reales fue
+   depurando el hook en vez de la feature. Verificado que hoy está limpio (AP-16), así que
+   cualquier diff tras B3 **es de F5**.
+3. **B4 va antes que el frontend, no al final.** En F1 y en F3, el bloque contra datos reales fue
    el que encontró lo que ningún test encontró (la columna `VICE`, el `codigo` de
    `dim_vicepresidencia`, la transacción abortada). Aquí el equivalente es cargar el golden en
    una libreta de verdad. Dejarlo para el final porque "los tests están verdes" es exactamente el
    error que R3 previene.
+
+**Lo que YA NO es una regla** (AP-13): v1 y v2 exigían *"verificar cobertura al cerrar cada
+bloque"*, heredado del susto de F3 (78,97 % → 72,41 %). **Medido, a F5 no le aplica**: con 83,86 %
+actual y ~300 statements nuevos, aunque entraran sin un solo test el total quedaría en 82,11 %.
+Se corre la cobertura al final, como higiene. Mantener una alarma que no puede sonar entrena a
+ignorarlas.
 
 **Regla aprendida en F3 y confirmada en F1:** el bloque de verificación contra datos reales
 (**B4**, cargando el golden en una libreta de verdad) es el que encuentra lo que ningún test
@@ -838,6 +920,9 @@ encuentra. No dejarlo para el final ni saltárselo porque "los tests están verd
     delante. Confundir las dos cosas es cómo se rompe un motor que ya pasa su examen.
 8f. **No se toca `api.py` de F4**: sus endpoints son «todo usuario autenticado» por diseño. Los
     de F5 van en router aparte, y un test verifica que los de F4 siguen abiertos.
+8g. **Un test no se borra ni se salta para poner el build en verde** (AP-12). Si una corrección
+    de este plan lo pone rojo, se **modifica** y el commit explica por qué la conducta anterior
+    era incorrecta. El conteo de tests al cerrar (§8) debe ser **mayor** que 819, nunca menor.
 9. **El estado del chat son datos, nunca HTML** (§0.5).
 10. **R1** — no se toca configuración de pnpm.
 11. **R3** — la fase no se marca completa hasta que el usuario recorra la pantalla en navegador.
@@ -865,6 +950,20 @@ cd .. && pnpm lint && pnpm typecheck && pnpm build && pnpm test:front   # 80% x 
 # AP-11 — el hook que rechaza el commit si esto no está al día
 pnpm run gen:types && git diff --exit-code prodia_v02_frontend/src/shared/types/api.d.ts
 ```
+
+### Línea base medida el 2026-08-20 (commit `76167ad`) — con qué comparar
+
+| Métrica | Al empezar F5 | Al cerrar F5 debe |
+|---|---:|---|
+| Tests backend | **819** | subir (~30-40 nuevos) |
+| Cobertura backend | **83,86 %** | ≥75 % (holgado, AP-13) |
+| Tests frontend | **291** | subir |
+| Cobertura frontend | **84,04 %** | ≥80 % × 4 |
+| Rutas OpenAPI | **30** | **33** (+3 de revisión) |
+| `api.d.ts` | sin diff | sin diff **tras** commitear |
+
+Si al cerrar hay **menos** de 819 tests backend, alguien borró tests en vez de corregirlos
+(AP-12). Es la comprobación más barata de que la regla 1 de §6 se respetó.
 
 ### El test de 403 y por qué necesita un fixture nuevo (AP-10)
 
