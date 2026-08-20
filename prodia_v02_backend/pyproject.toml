@@ -73,6 +73,12 @@ extend-exclude = "alembic/versions"
 strict = true
 files = ["src"]
 warn_unreachable = true
+# Sin este plugin, mypy no entiende los `Field(default=...)` de Pydantic y exige
+# TODOS los campos al construir un modelo, incluidos los que tienen valor por
+# defecto. Eso obliga a repetir campos opcionales en cada llamada —ruido que
+# además tapa los argumentos que sí importan— o a poner `type: ignore`. El
+# plugin es la solución oficial de Pydantic y no relaja el resto de `strict`.
+plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 module = ["ldap3.*", "dns.*", "itsdangerous.*", "pydantic_settings.*", "openpyxl.*"]

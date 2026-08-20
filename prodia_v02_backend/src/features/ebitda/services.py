@@ -66,7 +66,7 @@ class EbitdaService:
                     value_usd_bl=(
                         round(valor * 1000 / barriles, 2) if barriles else 0.0
                     ),
-                    type=tipo,  # type: ignore[arg-type]
+                    type=tipo,
                 )
             )
 

@@ -146,7 +146,7 @@ class CatalogoService:
                     nombre=str(fila["nombre"]),
                     niveles=niveles,
                     n_niveles=int(fila["n_niveles"]),
-                    severidad=sev,  # type: ignore[arg-type]
+                    severidad=sev,
                 )
             )
 
@@ -253,7 +253,7 @@ class CatalogoService:
             ),
             FamiliaSemaforoOut(
                 familia="El movimiento (Δ%, tendencias, rachas)",
-                nivel=nivel,  # type: ignore[arg-type]
+                nivel=nivel,
                 necesita_continuidad=True,
             ),
             FamiliaSemaforoOut(
@@ -263,7 +263,7 @@ class CatalogoService:
             ),
             FamiliaSemaforoOut(
                 familia="Anomalías (z-scores, cierres, outliers)",
-                nivel=nivel,  # type: ignore[arg-type]
+                nivel=nivel,
                 necesita_continuidad=True,
             ),
             FamiliaSemaforoOut(
