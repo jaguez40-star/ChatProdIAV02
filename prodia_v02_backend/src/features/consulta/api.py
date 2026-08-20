@@ -27,7 +27,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from src.core.logger import get_logger
+
+# 🔑 ADR-001: este es el ÚNICO módulo de `consulta` que importa `analisis`.
+# El motor recibe estos servicios como parámetros y nunca conoce su origen.
+from src.features.analisis.repositories import AnalisisRepository
+from src.features.analisis.services_desempeno import DesempenoService, escenario_mes
 from src.features.consulta import libreta, maquina, resolver
+from src.features.consulta.ejecutor import ejecutar
 from src.features.consulta.memoria import MEMORIA
 from src.features.consulta.schemas import (
     PreguntarIn,
@@ -35,12 +41,23 @@ from src.features.consulta.schemas import (
     VeredictoIn,
     VeredictoOut,
 )
+from src.features.consulta.slots import extraer_slots
 from src.shared.db_auth import get_db
 from src.shared.db_prod import get_prod_db
 
 logger = get_logger("consulta.api")
 
 router = APIRouter(prefix="/consulta", tags=["Consulta"])
+
+# Nivel temporal del ejecutor → tipo de panel del frontend. Los nombres son los
+# de la unión discriminada de `consultaTypes.ts`: un tipo que no esté ahí hace
+# que el frontend pinte el aviso de Q5 en vez de una tarjeta falsa.
+_TIPO_PANEL: dict[str, str] = {
+    "N1": "cuant_kpi",  # la cifra de un mes contra su referencia
+    "N2": "cuant_kpi",  # acumulado — mismo contrato, otra ventana
+    "N3": "cuant_serie",  # serie mensual
+    "N4": "cuant_var",  # variación entre dos periodos
+}
 
 RESPUESTAS_COMUNES: dict[int | str, dict[str, str]] = {
     401: {"description": "No autenticado — falta la cookie de sesión o es inválida"},
@@ -88,6 +105,86 @@ def preguntar(
     def _registrar(**kwargs: Any) -> int | None:
         return libreta.registrar(db_auth, **kwargs)
 
+    def _despachar(texto: str, nucleo: dict[str, Any]) -> dict[str, Any] | None:
+        """De «entendí la pregunta» a la cifra.
+
+        🔑 **Aquí es donde ADR-001 se respeta.** Este es el único módulo de la
+        feature que importa `features/analisis`; el ejecutor recibe el servicio
+        como parámetro (`desempeno_fn`) y nunca conoce su origen. Importarlo
+        dentro del motor recrearía el ciclo consulta→analisis del sistema viejo.
+
+        Devuelve `None` cuando no hay nada mejor que el mensaje base — por
+        ejemplo si la entidad no se resolvió. Nunca lanza hacia arriba: la
+        máquina ya envuelve esta llamada, pero un fallo aquí tampoco debe
+        perder la clasificación, que sí es correcta y sí se registra.
+        """
+        if nucleo["grupo"] != "cuantificar":
+            # `jerarquizar` y `analizar` se cablean después: hoy conservan el
+            # mensaje base en vez de fingir una respuesta.
+            return None
+
+        entidad = nucleo.get("entidad_cruda")
+        if not entidad:
+            return None
+
+        candidatos = resolver.resolver(str(entidad), db_prod)
+        if not candidatos:
+            hit = resolver.buscar_en_texto(texto, db_prod)
+            candidatos = list(hit[1]) if hit else []
+        if not candidatos:
+            return None
+        if len(candidatos) > 1:
+            # Colisión genuina: contrapreguntar es más honesto que elegir uno.
+            nombres = ", ".join(sorted({str(c.get("nivel", "?")) for c in candidatos}))
+            return {
+                "mensaje": (
+                    f"«{entidad}» existe en más de un nivel ({nombres}). "
+                    "¿A cuál te refieres?"
+                ),
+                "panel": None,
+            }
+
+        resuelta = candidatos[0]
+        slots = extraer_slots(texto, str(resuelta.get("valor") or entidad))
+
+        servicio = DesempenoService(AnalisisRepository(db_prod))
+
+        # El nombre del primer parámetro DEBE ser `entidad`: `EscenarioFn` es un
+        # Protocol con `__call__` posicional-o-nombrado, así que mypy compara
+        # también los nombres.
+        def _escenario(
+            entidad: str,
+            nivel: str | None = None,
+            periodo: str | None = None,
+            escenarios: tuple[str, ...] = ("OPERATIVO", "CONTABLE"),
+        ) -> dict[str, dict[str, float]]:
+            return escenario_mes(
+                AnalisisRepository(db_prod),
+                entidad,
+                nivel=nivel,
+                periodo=periodo,
+                escenarios=escenarios,
+            )
+
+        salida = ejecutar(
+            dict(resuelta),
+            dict(slots),
+            desempeno_fn=servicio.desempeno,
+            escenario_fn=_escenario,
+        )
+
+        if not salida.get("aplica"):
+            # Rechazo honesto del ejecutor: se dice por qué, sin panel.
+            return {"mensaje": str(salida.get("texto") or ""), "panel": None}
+
+        return {
+            "mensaje": str(salida.get("texto") or ""),
+            "panel": {
+                "tipo": _TIPO_PANEL.get(salida.get("nivel", "N1"), "cuant_kpi"),
+                "datos": salida,
+            },
+        }
+
     contexto = MEMORIA.obtener(body.conversacion_id)
 
     resultado = maquina.clasificar(
@@ -97,6 +194,7 @@ def preguntar(
         registrar=_registrar,
         usuario=usuario,
         conversacion_id=body.conversacion_id,
+        despachar=_despachar,
     )
 
     return RespuestaQ(**resultado)

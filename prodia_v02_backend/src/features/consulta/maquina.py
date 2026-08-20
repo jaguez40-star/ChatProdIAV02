@@ -31,11 +31,14 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from src.core.logger import get_logger
 from src.features.consulta import drills
 from src.features.consulta.clasificador import clasificar_capa2
 from src.features.consulta.dominio import nivel_dominio
 from src.features.consulta.memoria import ContextoConversacion
 from src.features.consulta.patrones import clasificar_capa1, es_anclado
+
+logger = get_logger("consulta.maquina")
 
 GRUPO_LABEL = {
     "jerarquizar": "Jerarquizar",
@@ -50,6 +53,17 @@ DetectorEntidad = Callable[[str], str | None]
 
 # Escritor de la libreta. Devuelve el id del registro, o `None` si falló.
 RegistradorLibreta = Callable[..., int | None]
+
+# Redactor de un grupo: recibe el texto ya reescrito y el veredicto del núcleo,
+# y devuelve `{"mensaje": str, "panel": dict | None}` — o `None` si no supo
+# responder, en cuyo caso se conserva el mensaje base.
+#
+# 🔑 Se INYECTA, no se importa. Los ejecutores necesitan los servicios de
+# `features/analisis` y la sesión de `db_prod`; importarlos aquí recrearía el
+# ciclo consulta→analisis que ADR-001 prohíbe y que el sistema de origen tiene.
+# La composición ocurre en `api.py`, que es el único módulo de la feature que
+# conoce `analisis` (mismo patrón que `DesempenoFn` en `niveles`).
+Despachador = Callable[[str, dict[str, Any]], dict[str, Any] | None]
 
 
 def _mensaje_base(grupo: str, entidad: str | None) -> str:
@@ -128,6 +142,7 @@ def clasificar(
     registrar: RegistradorLibreta | None = None,
     usuario: str | None = None,
     conversacion_id: str | None = None,
+    despachar: Despachador | None = None,
 ) -> dict[str, Any]:
     """Clasifica una pregunta, aplicando antes la reescritura conversacional.
 
@@ -176,6 +191,29 @@ def clasificar(
         "panel": None,
         "vp_ofrecida": None,
     }
+
+    # ── El despacho: de "entendí la pregunta" a "aquí está la cifra" ────────
+    #
+    # Sin despachador conectado la respuesta se queda en `_mensaje_base`, que
+    # solo acusa recibo. Es lo que hacía el chat entero antes de este cableado:
+    # clasificaba bien y no respondía nada.
+    #
+    # 🔑 Un fallo del ejecutor NO puede tumbar la respuesta, por la misma razón
+    # que la libreta (regla madre): el usuario debe ver al menos que su pregunta
+    # se entendió, con el error registrado, en vez de una pantalla rota.
+    if despachar is not None and nucleo["grupo"] != "desconocido":
+        try:
+            salida = despachar(efectivo, nucleo)
+        except Exception:
+            logger.exception("despacho_fallido", grupo=nucleo["grupo"])
+            salida = None
+
+        if salida:
+            if salida.get("mensaje"):
+                respuesta["mensaje"] = salida["mensaje"]
+            respuesta["panel"] = salida.get("panel")
+            if salida.get("vp_ofrecida"):
+                respuesta["vp_ofrecida"] = salida["vp_ofrecida"]
 
     if continuacion:
         # Se muestra lo que el usuario escribió, no lo reescrito.

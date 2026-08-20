@@ -37,9 +37,17 @@ export function SelectorAmbito({ ambito, onCambio }: SelectorAmbitoProps) {
     if (!catalogo.data) return [];
     const nivel = ambito.nivel?.trim();
     if (nivel && catalogo.data.entidadesPorNivel[nivel]) {
-      return catalogo.data.entidadesPorNivel[nivel];
+      // 🔑 Se deduplica también aquí, no solo en el caso de abajo: un mismo
+      // nombre puede repetirse DENTRO de un nivel (dos campos homónimos bajo
+      // activos distintos — las 151 colisiones que reporta Fundación).
+      return [...new Set(catalogo.data.entidadesPorNivel[nivel])];
     }
-    return Object.values(catalogo.data.entidadesPorNivel).flat().sort();
+    // 🔑 Sin el Set, este `.flat()` de TODOS los niveles garantiza duplicados,
+    // y con ellos una consola llena de "Encountered two children with the same
+    // key" (VIGIA, YAGUARA, YARIGUI-CANTAGALLO…) que React advierte que puede
+    // duplicar u omitir hijos. Solo aparece con el catálogo real del 139: con
+    // datos de prueba la lista es corta y no colisiona.
+    return [...new Set(Object.values(catalogo.data.entidadesPorNivel).flat())].sort();
   }, [catalogo.data, ambito.nivel]);
 
   return (
@@ -87,7 +95,17 @@ export function SelectorAmbito({ ambito, onCambio }: SelectorAmbitoProps) {
           disabled={ambito.segmento === 'filiales'}
         />
         <datalist id="entidades-analisis">
-          {entidades.slice(0, 500).map((e) => (
+          {/* 🔑 Se deduplica ANTES de pintar. El catálogo real del 139 trae el
+              mismo nombre más de una vez —VIGIA, YAGUARA, YARIGUI-CANTAGALLO…—
+              porque un campo puede colgar de dos activos distintos (las 151
+              colisiones que ya reporta el panel Fundación).
+
+              Con `key={e}` eso daba una consola llena de "Encountered two
+              children with the same key", y React avisa de que puede duplicar u
+              omitir hijos. Como sugerencia de un datalist, dos entradas
+              idénticas no aportan nada: el usuario escribe un nombre, no elige
+              un activo. */}
+          {[...new Set(entidades)].slice(0, 500).map((e) => (
             <option key={e} value={e} />
           ))}
         </datalist>
