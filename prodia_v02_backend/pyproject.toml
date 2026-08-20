@@ -74,8 +74,15 @@ asyncio_mode = "auto"
 markers = [
     "unit: tests unitarios, sin I/O real",
     "integration: tests de integración vía HTTP/BD en memoria",
+    "muestras: requieren un .xlsm real de Doc_Desing (fuera del repo) — excluidos por defecto",
 ]
-addopts = "--strict-markers"
+# `-m "not muestras"`: los tests contra archivos .xlsm reales quedan fuera del run
+# por defecto por dos razones. (1) CI no tiene esos archivos —viven en el sistema
+# viejo, fuera del repo—, así que allí siempre se saltarían. (2) En local, cargar un
+# libro de 125 MB con openpyxl dentro de la suite completa + coverage hace caer el
+# proceso con un access violation de Windows; aislados pasan sin problema.
+# Para ejecutarlos a propósito:  uv run pytest -m muestras
+addopts = "--strict-markers -m 'not muestras'"
 
 [tool.coverage.run]
 branch = true
