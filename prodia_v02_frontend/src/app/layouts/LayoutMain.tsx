@@ -23,6 +23,7 @@ import styles from './LayoutMain.module.scss';
 const SECCIONES = [
   { ruta: '/', etiqueta: 'Consulta' },
   { ruta: '/analisis', etiqueta: 'Análisis' },
+  { ruta: '/ingesta', etiqueta: 'Ingesta' },
 ] as const;
 
 /**

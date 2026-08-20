@@ -105,6 +105,26 @@ describe('LayoutMain', () => {
     expect(screen.getByRole('link', { name: 'Análisis' }).getAttribute('href')).toBe(
       '/analisis',
     );
+    expect(screen.getByRole('link', { name: 'Ingesta' }).getAttribute('href')).toBe(
+      '/ingesta',
+    );
+  });
+
+  it('toda ruta de sección del router tiene su enlace en el header', async () => {
+    montar();
+    await screen.findByRole('button', { name: 'Menú de usuario' });
+
+    // Ha pasado DOS veces: F2 creó /analisis y F3 creó /ingesta, y ninguna
+    // quedó enlazada — la página existía pero solo se llegaba escribiendo la
+    // URL a mano. Este test convierte ese descuido en un fallo de build.
+    const RUTAS_DE_SECCION = ['/', '/analisis', '/ingesta'];
+    const enlazadas = screen
+      .getAllByRole('link')
+      .map((a) => a.getAttribute('href'));
+
+    for (const ruta of RUTAS_DE_SECCION) {
+      expect(enlazadas).toContain(ruta);
+    }
   });
 
   it('marca como activa la sección de la ruta actual', async () => {
