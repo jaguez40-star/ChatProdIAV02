@@ -15,11 +15,17 @@ causa y difícil de atribuir.
 
 F2 añade cinco módulos compartidos que son candidatos exactos a ese fallo, así
 que la garantía se verifica, no se confía.
+
+**F4 amplía la vigilancia a FICHEROS**, no solo a sockets: la feature trae
+cuatro `config/*.yaml` y el sistema de origen los carga en tiempo de import
+(`respuesta_cuantificar.py:27`). Un espía de sockets no habría visto ese fallo.
 """
 
 from __future__ import annotations
 
+import builtins
 import socket
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -75,6 +81,76 @@ def test_los_modulos_compartidos_de_f2_no_hacen_io_al_importarse(
     ):
         importlib.reload(importlib.import_module(modulo))
         assert not intentos, f"{modulo} abrió una conexión al importarse: {intentos}"
+
+
+# Extensiones de datos que NINGÚN módulo debe leer en tiempo de import. Se
+# vigilan por extensión y no por ruta porque lo que importa no es dónde está el
+# fichero, sino que abrirlo cueste I/O de disco al arrancar.
+_EXTENSIONES_DE_DATOS = (".yaml", ".yml", ".json", ".csv", ".xlsx", ".xlsm", ".db")
+
+
+@pytest.mark.integration
+def test_importar_la_app_no_lee_ficheros_de_datos(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Importar `src.main` no debe leer YAML, CSV ni bases de datos.
+
+    **Por qué se amplía el guardián en F4.** El test hermano de arriba espía
+    *sockets*, que bastaba hasta F3. F4 trae cuatro `config/*.yaml` (442
+    líneas) y el sistema de origen los carga MAL: `respuesta_cuantificar.py:27`
+    ejecuta `_catalogo.get()` a nivel de módulo, así que allí importar la app
+    lee disco. Fue deliberado ("arranque ruidoso si el YAML está mal"), pero
+    aquí el momento es inaceptable: el hook `gen-types-check` de pre-commit se
+    dispara con TODO fichero de `src/features/**` e importa la app entera en
+    cada `git commit` del equipo.
+
+    La validación ruidosa sigue existiendo, pero vive en el `lifespan`: se
+    conserva el beneficio sin pagar el I/O al importar.
+    """
+    leidos: list[str] = []
+    open_real = builtins.open
+
+    def _open_espia(archivo: Any, *args: Any, **kwargs: Any) -> Any:
+        nombre = str(archivo)
+        if nombre.lower().endswith(_EXTENSIONES_DE_DATOS):
+            leidos.append(nombre)
+        return open_real(archivo, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", _open_espia)
+
+    # `Path.read_text`/`read_bytes` NO pasan por `builtins.open` en CPython:
+    # usan `io.open` a través del propio objeto. El origen carga sus YAML
+    # justamente con `_CFG_PATH.read_text(...)`, así que sin espiar también
+    # estos dos métodos el test daría verde en falso.
+    leidos_por_path: list[str] = []
+    read_text_real = Path.read_text
+    read_bytes_real = Path.read_bytes
+
+    def _read_text_espia(self: Path, *args: Any, **kwargs: Any) -> Any:
+        if str(self).lower().endswith(_EXTENSIONES_DE_DATOS):
+            leidos_por_path.append(str(self))
+        return read_text_real(self, *args, **kwargs)
+
+    def _read_bytes_espia(self: Path, *args: Any, **kwargs: Any) -> Any:
+        if str(self).lower().endswith(_EXTENSIONES_DE_DATOS):
+            leidos_por_path.append(str(self))
+        return read_bytes_real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _read_text_espia)
+    monkeypatch.setattr(Path, "read_bytes", _read_bytes_espia)
+
+    import importlib
+
+    import src.main
+
+    importlib.reload(src.main)
+
+    todos = leidos + leidos_por_path
+    assert not todos, (
+        "importar src.main leyó ficheros de datos: "
+        f"{todos}. Algún módulo carga su configuración en tiempo de import "
+        "(H4/AP-2); hazlo perezoso y valida en el lifespan."
+    )
 
 
 @pytest.mark.integration
