@@ -22,24 +22,40 @@ jobs:
       - run: uv run ruff check .
       - run: uv run black --check .
       - run: uv run mypy src
+      # db_prod NO se levanta a propósito: la suite usa un doble
+      # (tests/fakes/prod_db_falsa.py) y jamás toca PostgreSQL. Si algún test
+      # intentara conectar al servidor real, fallaría aquí — y eso es deliberado.
       - run: uv run pytest --cov=src --cov-fail-under=75
 
   frontend:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: prodia_v02_frontend
     steps:
       - uses: actions/checkout@v4
+      # Alineado con la versión de desarrollo (11.x): si CI usara una mayor
+      # distinta y pnpm cambiara el `lockfileVersion`, `--frozen-lockfile`
+      # fallaría por una diferencia de formato, no por las dependencias.
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 11
+      # DT-5: el lockfile es del WORKSPACE y vive en la raíz, no en
+      # prodia_v02_frontend/. Apuntar la caché al archivo inexistente hacía
+      # fallar este job entero en el paso de setup-node, antes de instalar nada.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: prodia_v02_frontend/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
+      # El install corre en la RAÍZ (workspace); el resto de pasos, en el paquete.
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+        working-directory: prodia_v02_frontend
       - run: pnpm typecheck
-      - run: pnpm test -- --coverage
+        working-directory: prodia_v02_frontend
+      # H8: sin este paso, un error de `tsc -b && vite build` pasaba CI y solo
+      # aparecía al desplegar.
+      - run: pnpm build
+        working-directory: prodia_v02_frontend
+      # DT-6: `pnpm test -- --coverage` no propagaba el flag (pnpm se come el
+      # `--`), así que el umbral del 80% (L7) no se evaluó nunca desde F0. El
+      # script `test:front` de la raíz sí ejecuta `vitest run --coverage`.
+      - run: pnpm test:front

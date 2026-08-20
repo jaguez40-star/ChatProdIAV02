@@ -104,6 +104,149 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tablas/arbol": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Árbol de reportes (año → mes → día)
+         * @description Metadata de todos los reportes, jerarquizada. **No** incluye el desglose de hojas/tablas: eso se carga bajo demanda con `/tablas/arbol/{reporte_id}` al expandir un día. Solo toca `core.config_reporte` (una fila por reporte), así que es instantánea sin importar cuántos reportes existan.
+         */
+        get: operations["arbol_reportes_api_v1_tablas_arbol_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tablas/arbol/{reporte_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Hojas y tablas de un reporte (carga perezosa)
+         * @description Desglose de un solo reporte. Filtrado por `reporte_id` para usar el índice `(reporte_id, hoja, tabla_idx)` en vez de agregar `core.fact_tabla_hoja` entera.
+         */
+        get: operations["hojas_de_reporte_api_v1_tablas_arbol__reporte_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tablas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tablas lógicas de una hoja
+         * @description Los ítems clicables del visor. `COMENTARIOS` es un caso aparte: no vive en `core.fact_tabla_hoja` (es texto), sino en su fact dedicado.
+         */
+        get: operations["listar_tablas_api_v1_tablas_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tablas/datos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contenido de una tabla en formato ancho
+         * @description Devuelve la tabla en uno de tres modos, indicado en `modo`:
+         *
+         *     - `fechas`: columnas = fechas (serie temporal).
+         *     - `matriz`: columnas = categorías; se conserva el **orden de aparición** porque en las matrices el orden de columnas es significativo.
+         *     - `texto`: `COMENTARIOS`, desde su fact dedicado.
+         *
+         *     Solo se devuelven las primeras 100 filas (`CAP_FILAS`); `total_filas` trae el total real.
+         */
+        get: operations["datos_tabla_api_v1_tablas_datos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tablas/reportes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista plana de reportes */
+        get: operations["listar_reportes_api_v1_tablas_reportes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tablas/reportes/cobertura": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cobertura de cada reporte por fact
+         * @description Cuántos registros aportó cada reporte a cada fact — diagnóstico de ingesta.
+         */
+        get: operations["cobertura_api_v1_tablas_reportes_cobertura_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tablas/kpis/produccion-dia": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Producción estimada por tipo de producto en una fecha
+         * @description Suma `vol_estimado` del grupo `ECOPETROL` para la fecha indicada.
+         */
+        get: operations["produccion_dia_api_v1_tablas_kpis_produccion_dia_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -125,10 +268,146 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnioArbolOut */
+        AnioArbolOut: {
+            /**
+             * Anio
+             * @description Año.
+             * @example 2026
+             */
+            anio: number;
+            /**
+             * Meses
+             * @description Meses con reporte, descendente.
+             */
+            meses: components["schemas"]["MesArbolOut"][];
+        };
+        /**
+         * CoberturaOut
+         * @description Cuántos registros aportó cada reporte a cada fact — diagnóstico de ingesta.
+         */
+        CoberturaOut: {
+            /**
+             * Reporte Id
+             * @description Id del reporte.
+             * @example 1042
+             */
+            reporte_id: number;
+            /**
+             * Tipo Archivo
+             * @description Tipo de archivo origen.
+             */
+            tipo_archivo?: string | null;
+            /**
+             * Ecp Mes
+             * @description Filas en `fact_produccion_mes_ecp`.
+             */
+            ecp_mes: number;
+            /**
+             * Ecp Dia
+             * @description Filas en `fact_produccion_dia_ecp`.
+             */
+            ecp_dia: number;
+            /**
+             * Filiales
+             * @description Filas en `fact_produccion_diaria`.
+             */
+            filiales: number;
+        };
+        /**
+         * DiaArbolOut
+         * @description Un día del árbol: apunta al reporte que se puede abrir.
+         */
+        DiaArbolOut: {
+            /**
+             * Dia
+             * @description Día del mes (1-31).
+             * @example 15
+             */
+            dia: number;
+            /**
+             * Reporte Id
+             * @description Id del reporte de ese día.
+             * @example 1042
+             */
+            reporte_id: number;
+            /**
+             * Tipo
+             * @description Tipo de archivo origen del reporte.
+             * @example ECP
+             */
+            tipo?: string | null;
+            /**
+             * Archivo
+             * @description Nombre del archivo origen.
+             * @example Reporte_Produccion_2026-08-15.xlsm
+             */
+            archivo?: string | null;
+        };
+        /**
+         * FilaTablaOut
+         * @description Una fila del visor en formato ancho.
+         *
+         *     `valores` admite `float` (modos `fechas`/`matriz`) y `str` (modo `texto`,
+         *     COMENTARIOS) porque el origen unifica ambos en la misma estructura y el
+         *     frontend hace dispatch por `TablaDatosOut.modo`.
+         *
+         *     `dims` es `Any` a propósito: en `core.fact_tabla_hoja` la columna `dims` es **JSONB**
+         *     y los extractores meten ahí lo que trae cada hoja — cadenas (`{"campo": "CASTILLA"}`)
+         *     pero también números (`{"anio": 2026}`) y booleanos. Tiparlo como `dict[str, str|None]`
+         *     hacía reventar la serialización con `ValidationError` en cuanto una hoja traía un
+         *     número, y el fallo NO aparecía en los tests (que usan dims de texto): solo contra el
+         *     corpus real. El visor únicamente muestra estos valores, no opera con ellos.
+         */
+        FilaTablaOut: {
+            /**
+             * Dims
+             * @description Valores de las columnas de dimensión de la fila (JSONB libre).
+             */
+            dims: {
+                [key: string]: unknown;
+            };
+            /**
+             * Valores
+             * @description Valores alineados posicionalmente con `meses`.
+             */
+            valores: (number | string | null)[];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HojaReporteOut */
+        HojaReporteOut: {
+            /**
+             * Hoja
+             * @description Nombre de la hoja.
+             * @example NEW MES-AÑO
+             */
+            hoja: string;
+            /**
+             * Tablas
+             * @description Tablas lógicas de la hoja.
+             */
+            tablas: components["schemas"]["TablaLogicaOut"][];
+        };
+        /**
+         * HojasReporteOut
+         * @description Desglose de un reporte — se carga bajo demanda al expandir un día.
+         */
+        HojasReporteOut: {
+            /**
+             * Reporte Id
+             * @description Id del reporte consultado.
+             * @example 1042
+             */
+            reporte_id: number;
+            /**
+             * Hojas
+             * @description Hojas del reporte con sus tablas.
+             */
+            hojas: components["schemas"]["HojaReporteOut"][];
         };
         /**
          * LoginRequest
@@ -198,6 +477,26 @@ export interface components {
             /** @description Permisos efectivos (grupo + individuales) */
             permissions: components["schemas"]["UserPermissionsOut"];
         };
+        /** MesArbolOut */
+        MesArbolOut: {
+            /**
+             * Mes
+             * @description Número de mes (1-12).
+             * @example 8
+             */
+            mes: number;
+            /**
+             * Mes Nombre
+             * @description Nombre del mes en español.
+             * @example Agosto
+             */
+            mes_nombre: string;
+            /**
+             * Dias
+             * @description Días con reporte, descendente.
+             */
+            dias: components["schemas"]["DiaArbolOut"][];
+        };
         /** PermissionGroupOut */
         PermissionGroupOut: {
             /** Id */
@@ -208,6 +507,53 @@ export interface components {
             description?: string | null;
             /** Is Admin */
             is_admin: boolean;
+        };
+        /**
+         * ProduccionDiaOut
+         * @description Volumen estimado por tipo de producto para una fecha (grupo ECOPETROL).
+         */
+        ProduccionDiaOut: {
+            /**
+             * Tipo Producto
+             * @description Nombre del tipo de producto.
+             * @example CRUDO
+             */
+            tipo_producto: string;
+            /**
+             * Vol Estimado
+             * @description Volumen estimado sumado. `None` si el dato no es finito (A6).
+             */
+            vol_estimado?: number | null;
+        };
+        /** ReporteOut */
+        ReporteOut: {
+            /**
+             * Reporte Id
+             * @description Id del reporte.
+             * @example 1042
+             */
+            reporte_id: number;
+            /**
+             * Fecha Reporte
+             * Format: date
+             * @description Fecha del reporte.
+             */
+            fecha_reporte: string;
+            /**
+             * Tipo Archivo
+             * @description Tipo de archivo origen.
+             */
+            tipo_archivo?: string | null;
+            /**
+             * Tiene Raw
+             * @description Si conserva las hojas RAW.
+             */
+            tiene_raw?: boolean | null;
+            /**
+             * Nivel Detalle
+             * @description Nivel de detalle del reporte.
+             */
+            nivel_detalle?: string | null;
         };
         /**
          * SessionTimeoutOut
@@ -223,6 +569,75 @@ export interface components {
              * @example 30
              */
             session_timeout_minutes: number;
+        };
+        /**
+         * TablaDatosOut
+         * @description Contenido de una tabla en formato ancho, en uno de los tres modos.
+         *
+         *     - `fechas`: columnas = fechas (serie temporal).
+         *     - `matriz`: columnas = categorías (`dims.columna`), fecha NULL; se conserva el
+         *       orden de aparición porque en las matrices el orden de columnas es significativo.
+         *     - `texto`: COMENTARIOS, desde su fact dedicado de texto.
+         */
+        TablaDatosOut: {
+            /**
+             * Modo
+             * @description Modo de presentación de la tabla.
+             * @default fechas
+             * @enum {string}
+             */
+            modo: "fechas" | "matriz" | "texto";
+            /**
+             * Vacia
+             * @description True si la tabla no tiene registros.
+             * @default false
+             */
+            vacia: boolean;
+            /**
+             * Dimensiones
+             * @description Nombres de las columnas de dimensión.
+             */
+            dimensiones: string[];
+            /**
+             * Meses
+             * @description Cabeceras de columna (fechas ISO, categorías o campos de texto).
+             */
+            meses: string[];
+            /**
+             * Filas
+             * @description Filas mostradas — recortadas a CAP_FILAS.
+             */
+            filas: components["schemas"]["FilaTablaOut"][];
+            /**
+             * Total Filas
+             * @description Total de filas de la tabla (puede superar las devueltas en `filas`).
+             * @default 0
+             */
+            total_filas: number;
+        };
+        /**
+         * TablaLogicaOut
+         * @description Una tabla lógica dentro de una hoja (los ítems clicables del visor).
+         */
+        TablaLogicaOut: {
+            /**
+             * Tabla Idx
+             * @description Índice de la tabla dentro de la hoja.
+             * @example 1
+             */
+            tabla_idx: number;
+            /**
+             * Tabla Label
+             * @description Etiqueta de la tabla.
+             * @example PRODUCCION MES
+             */
+            tabla_label?: string | null;
+            /**
+             * Filas
+             * @description Número de registros de la tabla.
+             * @example 240
+             */
+            filas: number;
         };
         /**
          * UserOut
@@ -491,6 +906,297 @@ export interface operations {
             };
             /** @description No autenticado */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    arbol_reportes_api_v1_tablas_arbol_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnioArbolOut"][];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    hojas_de_reporte_api_v1_tablas_arbol__reporte_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reporte_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HojasReporteOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listar_tablas_api_v1_tablas_get: {
+        parameters: {
+            query: {
+                /** @description Id del reporte. */
+                reporte_id: number;
+                /** @description Nombre de la hoja. */
+                hoja: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TablaLogicaOut"][];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    datos_tabla_api_v1_tablas_datos_get: {
+        parameters: {
+            query: {
+                /** @description Id del reporte. */
+                reporte_id: number;
+                /** @description Nombre de la hoja. */
+                hoja: string;
+                /** @description Índice de la tabla dentro de la hoja. */
+                tabla_idx: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TablaDatosOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listar_reportes_api_v1_tablas_reportes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReporteOut"][];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cobertura_api_v1_tablas_reportes_cobertura_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoberturaOut"][];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    produccion_dia_api_v1_tablas_kpis_produccion_dia_get: {
+        parameters: {
+            query: {
+                /** @description Fecha en formato ISO (YYYY-MM-DD). */
+                fecha: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProduccionDiaOut"][];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PostgreSQL (`db_prod`) no disponible */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
