@@ -1,0 +1,66 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.desconocido {
+  padding: $pv-space-3;
+  background: #fdf2f2;
+  border: 1px solid #e8b4b4;
+  border-radius: 8px;
+  color: #9b2c2c;
+  font-size: 0.78rem;
+
+  p { margin: 4px 0 0; }
+}
+
+.entidad {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: $pv-primary;
+}
+
+.nivel { font-weight: 400; color: $pv-muted; }
+
+.kpi { text-align: left; }
+
+.valor {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: $pv-navy;
+}
+
+.meta, .corte, .pie, .linea {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  color: $pv-muted;
+}
+
+.linea { color: $pv-navy; line-height: 1.5; }
+
+.proy { color: #BA7517; font-style: italic; }
+.tercero { color: $pv-muted; font-size: 0.7rem; }
+.sube { color: $pv-pos; }
+.baja { color: $pv-neg; }
+
+.avisos {
+  margin: $pv-space-2 0 0;
+  padding-left: $pv-space-3;
+  font-size: 0.7rem;
+  color: #BA7517;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.74rem;
+  margin-top: $pv-space-2;
+
+  th, td {
+    padding: 4px 6px;
+    text-align: left;
+    border-bottom: 1px solid $pv-border;
+  }
+
+  th { color: $pv-muted; font-weight: 600; }
+  td:last-child, th:last-child { text-align: right; }
+}

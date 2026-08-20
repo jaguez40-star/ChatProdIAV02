@@ -1,5 +1,5 @@
 import { PanelLeftClose } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import type { SeccionPrincipal } from '../../data/secciones';
 import styles from './PanelColapsable.module.scss';
@@ -16,6 +16,8 @@ interface PanelColapsableProps {
   grow: number;
   onExpandir: () => void;
   onColapsar: () => void;
+  /** Contenido del panel. F1a lo dejó vacío a propósito; lo llena F4. */
+  children?: ReactNode;
 }
 
 export function PanelColapsable({
@@ -25,6 +27,7 @@ export function PanelColapsable({
   grow,
   onExpandir,
   onColapsar,
+  children,
 }: PanelColapsableProps) {
   const Icono = seccion.icono;
 
@@ -76,7 +79,7 @@ export function PanelColapsable({
       </button>
 
       {/* Cuerpo vacío a propósito: el contenido de cada panel llega en F4. */}
-      <div className={styles.cuerpo} />
+      <div className={styles.cuerpo}>{children}</div>
     </div>
   );
 }

@@ -1,0 +1,53 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.historial {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-2;
+  padding: $pv-space-3;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.nueva {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px dashed $pv-border;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  color: $pv-muted;
+  cursor: pointer;
+
+  &:hover { border-color: $pv-primary; color: $pv-primary; }
+  &:focus-visible { outline: 2px solid $pv-primary; outline-offset: 1px; }
+}
+
+.vacio { margin: 0; font-size: 0.74rem; color: $pv-muted; }
+
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  color: $pv-navy;
+
+  &:hover { background: $pv-lime-soft; }
+}
+
+.turno {
+  min-width: 16px;
+  font-family: $pv-font-mono;
+  font-size: 0.62rem;
+  color: $pv-muted;
+}
+
+.texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

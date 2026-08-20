@@ -1,0 +1,88 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.pila {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-2;
+  padding: $pv-space-3;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.vacio {
+  padding: $pv-space-4;
+  font-size: 0.78rem;
+  color: $pv-muted;
+  text-align: center;
+}
+
+// El tope se DECLARA: el original descartaba en silencio.
+.descartados {
+  margin: 0;
+  padding: $pv-space-2;
+  font-size: 0.7rem;
+  color: $pv-muted;
+  background: $pv-bg;
+  border-radius: 6px;
+}
+
+.bloque {
+  border: 1px solid $pv-border;
+  border-radius: 8px;
+  background: $pv-white;
+  overflow: hidden;
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: $pv-space-2;
+  padding: 6px $pv-space-2;
+  background: $pv-bg;
+  border-bottom: 1px solid $pv-border;
+}
+
+.turno {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: $pv-primary;
+  color: $pv-white;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.pregunta {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.74rem;
+  color: $pv-navy;
+}
+
+.hora {
+  font-family: $pv-font-mono;
+  font-size: 0.64rem;
+  color: $pv-muted;
+}
+
+.alternar, .cerrar {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: $pv-muted;
+  cursor: pointer;
+
+  &:hover { background: $pv-border; color: $pv-primary; }
+  &:focus-visible { outline: 2px solid $pv-primary; outline-offset: 1px; }
+}
+
+.cuerpo { padding: $pv-space-3; }

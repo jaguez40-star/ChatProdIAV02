@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { useEffect, useState } from 'react';
 
 import { useIsMobile } from '../../../../shared/hooks/useIsMobile';
@@ -13,7 +15,12 @@ import styles from './AcordeonHorizontal.module.scss';
 
 type IdSeccion = SeccionPrincipal['id'];
 
-export function AcordeonHorizontal() {
+interface AcordeonHorizontalProps {
+  /** Contenido de cada panel, por id. F1a los dejó vacíos; los llena F4. */
+  cuerpos?: Partial<Record<IdSeccion, ReactNode>>;
+}
+
+export function AcordeonHorizontal({ cuerpos }: AcordeonHorizontalProps = {}) {
   const esMovil = useIsMobile();
   const maxAbiertos = esMovil ? MAX_ABIERTOS_MOVIL : MAX_ABIERTOS_ESCRITORIO;
   const [abiertos, setAbiertos] = useState<IdSeccion[]>(ABIERTOS_INICIALES);
@@ -73,7 +80,9 @@ export function AcordeonHorizontal() {
           grow={growDe(seccion.id)}
           onExpandir={() => expandir(seccion.id)}
           onColapsar={() => colapsar(seccion.id)}
-        />
+        >
+          {cuerpos?.[seccion.id]}
+        </PanelColapsable>
       ))}
     </div>
   );

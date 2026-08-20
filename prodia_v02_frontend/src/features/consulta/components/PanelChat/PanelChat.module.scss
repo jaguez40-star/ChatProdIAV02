@@ -1,0 +1,134 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+// El ÚNICO scroller del panel: anidar otro dejaría contenido inalcanzable.
+.historial {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: $pv-space-3;
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-2;
+}
+
+.saludo {
+  margin: 0;
+  padding: $pv-space-3;
+  font-size: 0.82rem;
+  color: $pv-muted;
+  background: $pv-lime-soft;
+  border-radius: 8px;
+}
+
+%burbuja {
+  max-width: 78%;
+  padding: $pv-space-2 $pv-space-3;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.burbujaUsuario {
+  @extend %burbuja;
+  align-self: flex-end;
+  background: $pv-primary;
+  color: $pv-white;
+}
+
+.burbujaBot {
+  @extend %burbuja;
+  align-self: flex-start;
+  background: $pv-white;
+  border: 1px solid $pv-border;
+  color: $pv-navy;
+}
+
+.burbujaError {
+  @extend %burbuja;
+  align-self: flex-start;
+  background: #fdf2f2;
+  border: 1px solid #e8b4b4;
+  color: #9b2c2c;
+
+  p {
+    margin: 0;
+  }
+}
+
+// La referencia del error va visible: es con lo que el usuario puede
+// reportar el problema y alguien hacer grep en los logs.
+.referencia {
+  margin-top: 4px !important;
+  font-family: $pv-font-mono;
+  font-size: 0.66rem;
+  opacity: 0.8;
+}
+
+.pensando {
+  align-self: flex-start;
+  font-size: 0.78rem;
+  color: $pv-muted;
+  font-style: italic;
+}
+
+.puntos {
+  letter-spacing: 2px;
+}
+
+.entrada {
+  display: flex;
+  gap: $pv-space-2;
+  padding: $pv-space-3;
+  border-top: 1px solid $pv-border;
+  background: $pv-white;
+  flex-shrink: 0;
+
+  input {
+    flex: 1;
+    padding: $pv-space-2 $pv-space-3;
+    font-family: $pv-font-sans;
+    font-size: 0.82rem;
+    border: 1px solid $pv-border;
+    border-radius: 8px;
+
+    &:focus-visible {
+      outline: 2px solid $pv-primary;
+      outline-offset: -1px;
+    }
+
+    &:disabled {
+      background: $pv-bg;
+      cursor: not-allowed;
+    }
+  }
+
+  button {
+    all: unset;
+    box-sizing: border-box;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    border-radius: 8px;
+    background: $pv-primary;
+    color: $pv-white;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $pv-primary;
+      outline-offset: 2px;
+    }
+  }
+}

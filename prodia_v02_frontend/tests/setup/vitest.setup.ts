@@ -56,3 +56,11 @@ if (!window.matchMedia) {
       dispatchEvent: () => false,
     }) as unknown as MediaQueryList;
 }
+
+// jsdom no implementa `scrollIntoView`. El chat de F4 lo usa para llevar la
+// vista al último mensaje, así que sin este stub cualquier test que monte la
+// página revienta con un TypeError — un fallo del entorno, no del componente.
+// Mismo criterio que el polyfill de `createObjectURL` para Plotly.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
