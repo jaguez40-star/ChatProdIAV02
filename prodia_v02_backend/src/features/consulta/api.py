@@ -42,6 +42,7 @@ from src.features.consulta.schemas import (
     VeredictoOut,
 )
 from src.features.consulta.slots import extraer_slots
+from src.shared import catalogo_entidades
 from src.shared.db_auth import get_db
 from src.shared.db_prod import get_prod_db
 
@@ -63,6 +64,91 @@ RESPUESTAS_COMUNES: dict[int | str, dict[str, str]] = {
     401: {"description": "No autenticado — falta la cookie de sesión o es inválida"},
     503: {"description": "PostgreSQL (`db_prod`) no disponible"},
 }
+
+
+def _jerarquia(entidad: str, db: Session) -> dict[str, Any] | None:
+    """Responde «¿qué campos tiene el activo X?» y «¿a qué activo pertenece X?».
+
+    Es la pregunta más elemental del chat, y el motivo de que exista el nivel
+    `jerarquizar`: identidad y pertenencia, sin una sola cifra de producción.
+
+    🔑 Sale del CATÁLOGO (`map_campo_activo`), no del fact: un activo tiene sus
+    campos aunque ninguno haya reportado hoy. Confundir las dos fuentes es lo
+    que hacía que Diferidas y el tablero discreparan para la misma entidad
+    (H11 de F2).
+    """
+    nombre = entidad.strip().upper()
+
+    campos = catalogo_entidades.campos_de_activo(db, nombre)
+    if campos:
+        return {
+            "mensaje": (
+                f"El activo {nombre} está compuesto por {len(campos)} "
+                f"{'campo' if len(campos) == 1 else 'campos'}."
+            ),
+            "panel": {
+                "tipo": "jerarq_arbol",
+                "datos": {
+                    "entidad": nombre,
+                    "nivel": "activo",
+                    "puente": False,
+                    "padres": [],
+                    "hijos_grupos": [
+                        {
+                            "nivel": "campo",
+                            "items": campos,
+                            "total": len(campos),
+                            "truncado": False,
+                        }
+                    ],
+                    "pozos": None,
+                    "operador": None,
+                    "fuera_estructura": False,
+                },
+            },
+        }
+
+    # No es un activo: ¿será un campo? La dirección inversa.
+    activo = catalogo_entidades.activo_de_campo(db, nombre)
+    if activo:
+        hermanos = [c for c in catalogo_entidades.campos_de_activo(db, activo)]
+        return {
+            "mensaje": f"El campo {nombre} pertenece al activo {activo}.",
+            "panel": {
+                "tipo": "jerarq_arbol",
+                "datos": {
+                    "entidad": nombre,
+                    "nivel": "campo",
+                    "puente": False,
+                    "padres": [{"nivel": "activo", "items": [activo]}],
+                    "hijos_grupos": (
+                        [
+                            {
+                                "nivel": "campo hermano",
+                                "items": [c for c in hermanos if c != nombre],
+                                "total": max(len(hermanos) - 1, 0),
+                                "truncado": False,
+                            }
+                        ]
+                        if len(hermanos) > 1
+                        else []
+                    ),
+                    "pozos": None,
+                    "operador": None,
+                    # `activo_de_campo` devuelve None para campos de terceros o
+                    # ambiguos sin veredicto: eso NO es un error, es un dato.
+                    "fuera_estructura": False,
+                },
+            },
+        }
+
+    return {
+        "mensaje": (
+            f"«{nombre}» no aparece en el catálogo como activo ni como campo. "
+            "Puede ser de un tercero o estar sin clasificar."
+        ),
+        "panel": None,
+    }
 
 
 def _usuario_de_la_sesion(request: Request) -> str | None:
@@ -118,14 +204,17 @@ def preguntar(
         máquina ya envuelve esta llamada, pero un fallo aquí tampoco debe
         perder la clasificación, que sí es correcta y sí se registra.
         """
-        if nucleo["grupo"] != "cuantificar":
-            # `jerarquizar` y `analizar` se cablean después: hoy conservan el
-            # mensaje base en vez de fingir una respuesta.
+        if nucleo["grupo"] not in ("cuantificar", "jerarquizar"):
+            # `analizar` se cablea después: hoy conserva el mensaje base en vez
+            # de fingir una respuesta.
             return None
 
         entidad = nucleo.get("entidad_cruda")
         if not entidad:
             return None
+
+        if nucleo["grupo"] == "jerarquizar":
+            return _jerarquia(str(entidad), db_prod)
 
         candidatos = resolver.resolver(str(entidad), db_prod)
         if not candidatos:
