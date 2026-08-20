@@ -27,10 +27,40 @@ export function AcordeonHorizontal() {
   const puedeColapsar = abiertos.length > 1;
 
   const expandir = (id: IdSeccion) =>
-    setAbiertos((prev) => (prev.includes(id) ? prev : [...prev, id].slice(-maxAbiertos)));
+    setAbiertos((prev) => {
+      if (prev.includes(id)) return prev;
+
+      // Simétrico a colapsar(): abrir Historial siempre lo empareja con Chat
+      // (25/75), sin importar qué estuviera abierto antes — si Insights
+      // estaba abierto, se colapsa. 'historial' va al final del array para
+      // que sobreviva el slice(-maxAbiertos) también en móvil (max 1).
+      if (id === 'historial') {
+        return (['chat', 'historial'] as IdSeccion[]).slice(-maxAbiertos);
+      }
+
+      return [...prev, id].slice(-maxAbiertos);
+    });
 
   const colapsar = (id: IdSeccion) =>
-    setAbiertos((prev) => (prev.length <= 1 ? prev : prev.filter((x) => x !== id)));
+    setAbiertos((prev) => {
+      if (prev.length <= 1) return prev;
+
+      // Historial es un panel de apoyo, no de trabajo: cerrarlo siempre
+      // revela el par de trabajo completo (Chat + Insights), sin importar
+      // cuál de los dos estuviera abierto antes. Cerrar Chat o Insights, en
+      // cambio, se comporta de forma normal — queda el otro solo.
+      if (id === 'historial') {
+        return (['chat', 'insights'] as IdSeccion[]).slice(-maxAbiertos);
+      }
+
+      return prev.filter((x) => x !== id);
+    });
+
+  /**
+   * El ancho depende de la PAREJA abierta, no del panel: Chat ocupa 75 % junto
+   * a Historial y 50 % junto a Insights. Historial es el único angosto.
+   */
+  const growDe = (id: IdSeccion) => (id === 'historial' ? 1 : 3);
 
   return (
     <div className={styles.acordeon}>
@@ -40,6 +70,7 @@ export function AcordeonHorizontal() {
           seccion={seccion}
           abierto={abiertos.includes(seccion.id)}
           puedeColapsar={puedeColapsar}
+          grow={growDe(seccion.id)}
           onExpandir={() => expandir(seccion.id)}
           onColapsar={() => colapsar(seccion.id)}
         />

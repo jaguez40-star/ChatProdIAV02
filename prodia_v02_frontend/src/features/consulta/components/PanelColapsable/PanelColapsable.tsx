@@ -1,4 +1,5 @@
 import { PanelLeftClose } from 'lucide-react';
+import type { CSSProperties } from 'react';
 
 import type { SeccionPrincipal } from '../../data/secciones';
 import styles from './PanelColapsable.module.scss';
@@ -9,6 +10,10 @@ interface PanelColapsableProps {
   /** false cuando este es el único panel abierto: colapsarlo dejaría la
    *  página sin contenido, así que el botón se deshabilita. */
   puedeColapsar: boolean;
+  /** Peso de reparto horizontal. Lo decide el acordeón, que es quien conoce
+   *  la pareja abierta — ver AcordeonHorizontal.growDe(). Solo se aplica
+   *  mientras el panel está abierto; colapsado tiene ancho fijo. */
+  grow: number;
   onExpandir: () => void;
   onColapsar: () => void;
 }
@@ -17,6 +22,7 @@ export function PanelColapsable({
   seccion,
   abierto,
   puedeColapsar,
+  grow,
   onExpandir,
   onColapsar,
 }: PanelColapsableProps) {
@@ -46,7 +52,7 @@ export function PanelColapsable({
   }
 
   return (
-    <div className={clases}>
+    <div className={clases} style={{ '--pv-panel-grow': grow } as CSSProperties}>
       <button
         type="button"
         className={styles.cabecera}
@@ -69,7 +75,7 @@ export function PanelColapsable({
         </span>
       </button>
 
-      {/* Cuerpo vacío a propósito: el contenido de cada panel llega en F1+. */}
+      {/* Cuerpo vacío a propósito: el contenido de cada panel llega en F4. */}
       <div className={styles.cuerpo} />
     </div>
   );

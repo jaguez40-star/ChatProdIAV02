@@ -16,7 +16,7 @@
     "typecheck:front": "pnpm --filter prodia-v02-frontend typecheck",
     "test": "concurrently --names back,front --prefix-colors blue,green \"pnpm run test:back\" \"pnpm run test:front\"",
     "test:back": "cd prodia_v02_backend && uv run pytest",
-    "test:front": "pnpm --filter prodia-v02-frontend test",
+    "test:front": "pnpm --filter prodia-v02-frontend exec vitest run --coverage",
     "gen:types": "cd prodia_v02_backend && uv run python scripts/export_openapi.py && cd ../prodia_v02_frontend && pnpm exec openapi-typescript ../prodia_v02_backend/openapi.json -o src/shared/types/api.d.ts"
   },
   "devDependencies": {

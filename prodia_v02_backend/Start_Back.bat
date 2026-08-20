@@ -10,14 +10,20 @@ echo.
 echo [ProdIA V02] Backend - directorio: %CD%
 echo.
 
-REM --- uv disponible? ---
+REM --- uv disponible? Si no esta en el PATH, probamos su ubicacion estandar ---
+REM     (uv se instala en %USERPROFILE%\.local\bin, que no siempre esta en el PATH en Windows)
 where uv >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] No se encontro "uv" en el PATH.
-    echo         Instalalo con: winget install astral-sh.uv
-    echo.
-    pause
-    exit /b 1
+    if exist "%USERPROFILE%\.local\bin\uv.exe" (
+        set "PATH=%USERPROFILE%\.local\bin;%PATH%"
+    ) else (
+        echo [ERROR] No se encontro "uv" en el PATH ni en %USERPROFILE%\.local\bin
+        echo         Instalalo con: winget install astral-sh.uv
+        echo         Si ya esta instalado, cierra y reabre la terminal para recargar el PATH.
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
 REM --- .env presente? el lifespan hace fail-fast sin el ---

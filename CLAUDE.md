@@ -133,9 +133,12 @@ prodia_v02_backend/src/
 └── features/{auth,permissions,audit}/{api,schemas,services,models,repositories}.py
 
 prodia_v02_frontend/src/
-├── app/{router,providers,App}.tsx + store/authStore.ts + layouts/
+├── app/{router,providers,App}.tsx + store/authStore.ts
+│   └── layouts/LayoutMain.tsx + layouts/components/MenuUsuario/   header sin marca ni waffle
 ├── shared/{services,components,styles,utils,hooks,types}/
-└── features/auth/{pages,components,hooks,services,schemas,mappers,types}/
+└── features/
+    ├── auth/{pages,components,hooks,services,schemas,mappers,types}/
+    └── consulta/{pages,components,data}/   3 paneles: Historial/Chat/Insights (cascarón F1a)
 ```
 
 **Cero imports cross-feature** (ADR-001) — cada feature es autocontenida.
@@ -350,9 +353,11 @@ creada pero sin instrumentar todavía).
 | # | Deuda | Origen | Impacto |
 |---|---|---|---|
 | DT-1 | `pnpm approve-builds` interactivo escribió `allowBuilds: false` por error durante el setup de F0, dejando `esbuild` sin construir | Ejecución de F0 (2026-08-18) | Corregido en el mismo commit (`allowBuilds: true` explícito en `pnpm-workspace.yaml`) — documentado aquí por si se repite en un `pnpm install` limpio en otra máquina |
-| DT-2 | El `.venv` de `prodia_v02_backend` resolvió Python 3.14 en lugar de 3.12 en algún entorno de verificación (mientras `pyproject.toml` pide `>=3.12`) | Observado durante `pytest -v` de F0 | No bloqueante mientras los tests pasen; fijar la versión exacta con `uv python pin 3.12` si se vuelve a observar |
+| DT-2 | ✅ **Cerrada (2026-08-19)**. El `.venv` de `prodia_v02_backend` había resuelto Python 3.14 en lugar de 3.12 (`pyproject.toml` pide `>=3.12`), y además tenía permisos NTFS corruptos (454 archivos ilegibles, `PermissionError` al leer `sqlalchemy`). Se recreó el `.venv` desde cero en terminal Administrador (`takeown`+`icacls`+`Remove-Item`), se fijó la versión con `uv python pin 3.12`, y `uv sync --extra dev`. Verificado: `python --version` = 3.12.14, archivos legibles, `alembic current` = `0003_seed_padron (head)` | Observado durante `pytest -v` de F0; reaparecido al arrancar el backend (2026-08-19) | Resuelto. El `.python-version` fijado en 3.12 evita la recaída |
 | DT-3 | RBAC de UI (C4) no implementado — no hay navegación con múltiples secciones todavía en F0 | Heredada de Robustez V02, diferida a F1+ | Cerrar cuando exista más de una sección navegable |
 | DT-4 | Sin excepciones de dominio tipadas (C12) — solo el campo `code` opcional existe en el contrato | Heredada de Robustez V02, diferida | Añadir cuando una feature de F1+ necesite distinguir tipos de error de negocio |
+| DT-5 | `ci.yml` usa `cache-dependency-path: prodia_v02_frontend/pnpm-lock.yaml`, archivo que no existe — el lockfile del workspace vive en la raíz | Auditoría de pipelines, plan F1a (2026-08-18) | La caché de pnpm en CI nunca acierta; builds más lentas, sin fallo funcional |
+| DT-6 | `pnpm test -- --coverage` no propaga el flag a vitest (pnpm se come el `--`): el umbral L7 del 80 % no se evaluó en CI desde F0 | Auditoría de pipelines, plan F1a (2026-08-18) | Corregido en `test:front` de `package.json` (raíz); **`ci.yml` sigue usando el comando roto** — cerrar cuando se toque CI |
 
 ---
 
@@ -371,6 +376,12 @@ creada pero sin instrumentar todavía).
 Cada fase requiere su propio plan en `Planes/`, con el mismo formato de F0 (§0 de este
 documento), auditado contra el código real antes de escribirse.
 
+**F1a (adelanto fuera de la numeración, 2026-08-18)** — cascarón de la página de Consulta:
+3 paneles colapsables re-propuestos de Ingesta/Control/Análisis a **Historial/Chat/Insights**,
+con el reparto de ancho y las reglas de apertura ya definitivos. **Cuerpos vacíos** — el
+contenido real (historial persistido, chat, gráficos) sigue siendo F4. No adelanta ni F1 ni F4;
+solo valida el contenedor. Ver `Planes/plan_F1a_cascaron_consulta_2026-08-18.md` y §11.
+
 ---
 
 ## 11. Bitácora
@@ -378,3 +389,4 @@ documento), auditado contra el código real antes de escribirse.
 | Fecha | Qué se hizo | Archivos | Hallazgos |
 |---|---|---|---|
 | 2026-08-17/18 | **F0 completo**: cimiento del monorepo (uv+pnpm), observabilidad (L1), auth LDAP con las 3 trampas preservadas (L5), migraciones Alembic (0001/0002 DDL + 0003 seed del padrón), login funcional en frontend (React 19 + TanStack Query + Zustand) idéntico en comportamiento a Robustez V02 sin el panel decorativo. 58/58 tests backend (87% cobertura), suite de tests frontend en construcción. | Ver `Planes/plan_F0_cimiento_2026-08-17.md` para el diff completo | El hallazgo más importante: Robustez V02 no tiene forma de crear su primer usuario (ver ADR-002) — sin corregirlo, F0 habría entregado un login que no deja entrar a nadie. Segundo hallazgo: el body de los 401 emitidos por el middleware de auth no llevaba `correlation_id` (solo en el header) — corregido para cumplir N6 de forma consistente con los errores de router |
+| 2026-08-18 (F1a) | **Cascarón de la página Main / Consulta**: maqueta en Artifact para acordar el layout (header original de Robustez → header en blanco, luego reducido a 48px/avatar 32px, sin marca ni waffle) implementada en código real. Los 3 paneles colapsables se re-proponen de Ingesta/Control/Análisis a **Historial/Chat/Insights**; `features/home/` renombrado a `features/consulta/`, `HomePage`→`ConsultaPage`. Reparto de ancho **por pareja abierta**, no por panel fijo (Historial+Chat y Historial+Insights = 25/75; Chat+Insights = 50/50) vía `flex` + `@property --pv-panel-grow` (animable — sin el `@property` el cambio de pareja saltaría en seco). Reglas de auto-emparejamiento bidireccionales: cerrar Historial siempre revela Chat+Insights; abrir Historial siempre lo empareja con Chat, colapsando Insights. Auditoría de pipelines previa a ejecutar (H1-H6): commit inicial del repo (no existía ninguno — H2), `git mv` en vez de `mv` (`core.ignorecase=true` en Windows — H3), y corrección de `test:front` (`pnpm test -- --coverage` no propagaba el flag a vitest, el umbral de cobertura L7 nunca se evaluó en CI desde F0 — H1/DT-6). 141/141 tests frontend, cobertura 92,8%. | `Planes/plan_F1a_cascaron_consulta_2026-08-18.md` (plan v2 auditado) · `prodia_v02_frontend/src/features/consulta/**` (renombrado completo de `home/`) · `prodia_v02_frontend/src/app/router.tsx` · `prodia_v02_frontend/src/app/layouts/{LayoutMain.tsx,LayoutMain.module.scss,components/MenuUsuario/**}` · `package.json` (raíz, `test:front`) | DT-5 (lockfile inexistente en la caché de `ci.yml`) y DT-6 nacieron de esta auditoría — ver §9, ambas siguen abiertas (`ci.yml` no se tocó, fuera de alcance del plan). Verificado en navegador por el usuario vía capturas (paneles, reparto y las dos reglas de auto-emparejamiento confirmados); pendiente confirmar explícitamente que la transición anima al cambiar de pareja (R3, riesgo H6) |
