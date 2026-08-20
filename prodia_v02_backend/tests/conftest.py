@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 import structlog
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 
 import src.shared.db_auth as _db_auth_module
@@ -62,6 +62,32 @@ def _make_integration_engine() -> Engine:
         cursor.close()
 
     Base.metadata.create_all(engine)
+
+    # Las tablas de F4 viven solo en la migración 0004, no en un modelo ORM:
+    # `libreta.py` usa SQL directo, y declararlas dos veces (modelo + DDL de
+    # Alembic) las dejaría divergir en silencio. Aquí se crean explícitamente
+    # para que los tests de integración ejerciten el SQL real.
+    with engine.begin() as conexion:
+        conexion.execute(text("""
+                CREATE TABLE IF NOT EXISTS clasificacion_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    usuario VARCHAR(120),
+                    conversacion_id VARCHAR(64),
+                    texto_pregunta TEXT NOT NULL,
+                    grupo_asignado VARCHAR(20) NOT NULL,
+                    capa_resolutora VARCHAR(20) NOT NULL,
+                    patrones_atrapados TEXT,
+                    entidad_cruda VARCHAR(200),
+                    llm_diag VARCHAR(40),
+                    veredicto VARCHAR(30) NOT NULL DEFAULT 'pendiente',
+                    grupo_correcto VARCHAR(20),
+                    fuente_veredicto VARCHAR(20),
+                    ts_veredicto TIMESTAMP,
+                    nota_revision TEXT
+                )
+                """))
+
     return engine
 
 

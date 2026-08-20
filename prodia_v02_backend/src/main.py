@@ -29,6 +29,8 @@ from src.core.exceptions import register_exception_handlers
 from src.core.logger import get_logger, setup_logging
 from src.features.analisis.api import router as analisis_router
 from src.features.auth.api import router as auth_router
+from src.features.consulta import catalogo as catalogo_consulta
+from src.features.consulta.api import router as consulta_router
 from src.features.diferidas.api import router as diferidas_router
 from src.features.ebitda.api import router as ebitda_router
 from src.features.ingesta.api import router as ingesta_router
@@ -96,6 +98,14 @@ OPENAPI_TAGS: list[dict[str, str]] = [
             "y solo el evento final `confirmado` garantiza que los datos se guardaron."
         ),
     },
+    {
+        "name": "Consulta",
+        "description": (
+            "Chat en lenguaje natural sobre producción (Motor Q v2). Python "
+            "calcula y el LLM solo redacta el saludo: ninguna cifra sale de un "
+            "modelo. Lee `db_prod` — 503 si PostgreSQL no está disponible."
+        ),
+    },
     {"name": "Health", "description": "Estado del backend y sus bases de datos."},
 ]
 
@@ -129,6 +139,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "el resto del backend arranca igual (H9)"
             ),
         )
+
+    # F4 — validación del catálogo del Motor Q. El sistema de origen la hace en
+    # tiempo de IMPORT para tener un "arranque ruidoso si el YAML está mal"; el
+    # objetivo es bueno pero el momento no, porque el hook `gen-types-check`
+    # importa la app en cada `git commit` del equipo (AP-2). Aquí se conserva
+    # el arranque ruidoso sin pagar I/O al importar.
+    try:
+        catalogo_consulta.validar()
+        logger.info("consulta_catalogo_ok")
+    except (OSError, ValueError) as exc:
+        # No aborta: sin catálogo, `cuantificar` no responde, pero el login y
+        # el resto de features siguen en pie (mismo criterio que H9).
+        logger.error("consulta_catalogo_invalido", detalle=str(exc))
 
     yield
 
@@ -167,6 +190,7 @@ app.include_router(ebitda_router, prefix=API_PREFIX)
 app.include_router(diferidas_router, prefix=API_PREFIX)
 app.include_router(mantenimientos_router, prefix=API_PREFIX)
 app.include_router(ingesta_router, prefix=API_PREFIX)
+app.include_router(consulta_router, prefix=API_PREFIX)
 
 
 @app.get(f"{API_PREFIX}/health", tags=["Health"])
