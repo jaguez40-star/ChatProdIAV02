@@ -15,13 +15,55 @@
   height: var(--header-h);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  // `space-between`: navegación a la izquierda, avatar a la derecha. El <nav>
+  // existe siempre, así que el avatar no se desplaza al cambiar de sección.
+  justify-content: space-between;
   padding: 0 $pv-space-4;
   background: $pv-white;
   border-bottom: 1px solid $pv-border;
   flex-shrink: 0;
   position: relative;
   z-index: 20;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: $pv-space-3;
+  height: 100%;
+}
+
+// Ocupa toda la altura del header para que la barra de la sección activa
+// quede pegada a su borde inferior, no flotando a media franja.
+.navLink {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 $pv-space-2;
+  font-family: $pv-font-sans;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: $pv-muted;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+
+  &:hover {
+    color: $pv-primary;
+    background: $pv-lime-soft;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $pv-primary;
+    outline-offset: -2px;
+  }
+}
+
+.navLinkActivo {
+  color: $pv-primary;
+  font-weight: 800;
+  // El color no puede ser la única señal de la sección activa (WCAG 1.4.1):
+  // la barra inferior la marca sin depender de percibir el contraste.
+  border-bottom-color: $pv-lime;
 }
 
 .avatarBtn {

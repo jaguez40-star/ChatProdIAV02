@@ -28,13 +28,13 @@ const USUARIO = {
   updatedAt: '2026-01-01T00:00:00Z',
 };
 
-function montar() {
+function montar(rutaInicial = '/') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[rutaInicial]}>
         <LayoutMain />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -93,6 +93,34 @@ describe('LayoutMain', () => {
 
     await user.click(screen.getByRole('contentinfo'));
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('el header ofrece las secciones navegables', async () => {
+    montar();
+    await screen.findByRole('button', { name: 'Menú de usuario' });
+
+    const nav = screen.getByRole('navigation', { name: 'Secciones' });
+    expect(nav).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Consulta' }).getAttribute('href')).toBe('/');
+    expect(screen.getByRole('link', { name: 'Análisis' }).getAttribute('href')).toBe(
+      '/analisis',
+    );
+  });
+
+  it('marca como activa la sección de la ruta actual', async () => {
+    montar('/analisis');
+    await screen.findByRole('button', { name: 'Menú de usuario' });
+
+    // `aria-current` lo pone NavLink al estar activo: es la única señal que
+    // se puede afirmar sin depender de los nombres de clase de CSS Modules.
+    expect(
+      screen.getByRole('link', { name: 'Análisis' }).getAttribute('aria-current'),
+    ).toBe('page');
+    // El `end` de la raíz: sin él '/' quedaría activa también aquí, porque
+    // toda ruta empieza por '/'.
+    expect(
+      screen.getByRole('link', { name: 'Consulta' }).getAttribute('aria-current'),
+    ).toBeNull();
   });
 
   it('sin usuario en el store, el menú no se monta aunque se pulse el avatar', async () => {

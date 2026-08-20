@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../app/store/authStore';
 import { InactivitySessionModal } from '../../features/auth/components/InactivitySessionModal';
@@ -10,11 +10,27 @@ import { MenuUsuario } from './components/MenuUsuario';
 import styles from './LayoutMain.module.scss';
 
 /**
+ * Secciones navegables. Vive aquí como dato plano y NO importa nada de las
+ * features: el layout solo conoce rutas y etiquetas, nunca sus hooks — es la
+ * corrección de C10, donde el layout de Robustez V02 importaba hooks de 4
+ * features para alimentar un ticker e invertía la dependencia.
+ *
+ * Sin filtro por permiso todavía (C4/DT-3): el backend ya calcula `sections`,
+ * pero `tablas` y `analisis` solo exigen usuario autenticado, así que filtrar
+ * hoy dejaría sin navegación a quien tenga la lista vacía. Se cierra cuando
+ * una sección exija un permiso propio, usando los IDs exactos del backend.
+ */
+const SECCIONES = [
+  { ruta: '/', etiqueta: 'Consulta' },
+  { ruta: '/analisis', etiqueta: 'Análisis' },
+] as const;
+
+/**
  * Simplificado respecto de Robustez V02 (que además tiene drawer lateral y
- * ticker de KPIs, con el defecto documentado C10: el layout importaba
- * hooks de 4 features distintas para alimentar el ticker, invirtiendo la
- * dependencia). Aquí el header es una franja blanca cuyo único control es el
- * avatar — sin marca ni lanzador de módulos (decisión del usuario).
+ * ticker de KPIs, con el defecto documentado C10). Aquí el header es una
+ * franja blanca con la navegación entre secciones a la izquierda y el avatar
+ * como único otro control — sin marca ni lanzador de módulos (decisión del
+ * usuario en F1a).
  */
 export function LayoutMain() {
   const user = useAuthStore((s) => s.user);
@@ -64,6 +80,23 @@ export function LayoutMain() {
       />
 
       <header className={styles.header} ref={headerRef}>
+        <nav className={styles.nav} aria-label="Secciones">
+          {SECCIONES.map(({ ruta, etiqueta }) => (
+            <NavLink
+              key={ruta}
+              to={ruta}
+              // `end` solo en la raíz: sin él, '/' quedaría activa también en
+              // '/analisis', porque toda ruta empieza por '/'.
+              end={ruta === '/'}
+              className={({ isActive }) =>
+                isActive ? `${styles.navLink} ${styles.navLinkActivo}` : styles.navLink
+              }
+            >
+              {etiqueta}
+            </NavLink>
+          ))}
+        </nav>
+
         <button
           type="button"
           className={styles.avatarBtn}
