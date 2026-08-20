@@ -85,11 +85,16 @@ async def database_exception_handler(
     503 es además la semántica correcta: la BD no está disponible, no es un error del
     servidor procesando la petición. El detalle interno va al log (L1), nunca al cliente.
     """
+    # `exc_info` es lo que convierte este log en accionable: sin la traza, un
+    # `DetachedInstanceError` —que no viene de la BD sino de tocar un objeto ORM
+    # cuya sesión ya cerró— solo dice "la base no está disponible", y manda a
+    # buscar el problema donde no está.
     logger.error(
         "database_unavailable",
         path=request.url.path,
         exc_type=type(exc).__name__,
         detalle=str(exc),
+        exc_info=True,
     )
     return _error_response(
         503,

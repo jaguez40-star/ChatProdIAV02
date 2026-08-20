@@ -141,6 +141,30 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return _unauth_response("Usuario no encontrado o desactivado")
 
             request.state.user = user
+            # El `is_admin` del GRUPO se resuelve aquí, con la sesión todavía
+            # viva, por la misma razón que `timeout_min`: `user.group` es una
+            # relación perezosa y el `finally` de abajo cierra la sesión. Un
+            # guard que la navegara después obtendría `DetachedInstanceError`,
+            # que el manejador global convierte en un 503 — y un administrador
+            # legítimo vería "base de datos no disponible" en vez de entrar.
+            # El criterio admin se resuelve AQUÍ, con la sesión viva, y viaja
+            # como un bool en `request.state`.
+            #
+            # No es una optimización: es la única forma de que funcione. El
+            # `finally` de abajo cierra la sesión, y cualquier commit posterior
+            # EXPIRA los atributos del objeto. A partir de ahí, leer `is_admin`
+            # —una columna corriente— dispara un refresco contra una sesión
+            # muerta y levanta `DetachedInstanceError`, que el manejador global
+            # traduce a un 503: un administrador legítimo vería "base de datos
+            # no disponible" en vez de entrar.
+            #
+            # Se guardan valores planos, no el `User`, porque un int y un bool
+            # no caducan. `get_allowed_campos` usa los identificadores.
+            request.state.es_admin = bool(
+                user.is_admin or (user.group is not None and user.group.is_admin)
+            )
+            request.state.user_id = int(user.id)
+            request.state.group_id = user.group_id
             # Se lee ACÁ, no más abajo: el finally cierra la sesión y el
             # sliding refresh que necesita este valor corre después del
             # call_next.

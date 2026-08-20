@@ -641,6 +641,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/consulta/revision/libreta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista la libreta con sus KPIs (Test Clas)
+         * @description La cola de revisión y el estado del ciclo.
+         *
+         *     **Lectura pura, sin efectos.** El origen llamaba a `senales.escanear()`
+         *     dentro de este GET, así que cada clic en un chip de filtro recorría todos
+         *     los pendientes lanzando dos consultas por fila. El escaneo vive ahora en su
+         *     propio endpoint, que la UI llama una vez al abrir.
+         */
+        get: operations["listar_libreta_api_v1_consulta_revision_libreta_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consulta/revision/veredicto-lote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aplica varios veredictos de revisión (Control 3)
+         * @description Control 3 por lotes.
+         *
+         *     `fuente` la fija el servidor en `"revision"`: es lo que distingue el juicio
+         *     del revisor del ✓/✗ que da el propio usuario en su chat.
+         */
+        post: operations["veredicto_lote_api_v1_consulta_revision_veredicto_lote_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consulta/revision/escanear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ejecuta el Control 2 y devuelve qué encontró
+         * @description Busca señales indirectas y marca sospechas.
+         *
+         *     Explícito a propósito (ver `listar_libreta`). Y **no** se envuelve en un
+         *     `try/except` mudo: si el escaneo falla, el manejador global responde con el
+         *     contrato de error uniforme y su `correlation_id`, que es lo que permite
+         *     encontrarlo en los logs. El origen lo silenciaba.
+         */
+        post: operations["escanear_senales_api_v1_consulta_revision_escanear_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -871,6 +944,19 @@ export interface components {
             fuentes: number;
         };
         /**
+         * EscaneoOut
+         * @description Lo que hizo el Control 2 al pasar.
+         *
+         *     El origen se tragaba el resultado con un `except: pass`, así que un escaneo
+         *     roto era indistinguible de uno sin hallazgos.
+         */
+        EscaneoOut: {
+            /** Sospechas Nuevas */
+            sospechas_nuevas: number;
+            /** Filas Revisadas */
+            filas_revisadas: number;
+        };
+        /**
          * FamiliaSemaforoOut
          * @description Una de las 5 familias estadísticas y si el dato disponible la soporta.
          */
@@ -887,6 +973,41 @@ export interface components {
              * @description True si depende de la racha de días continuos.
              */
             necesita_continuidad: boolean;
+        };
+        /**
+         * FilaLibreta
+         * @description Una clasificación con su estado de juicio.
+         */
+        FilaLibreta: {
+            /** Id */
+            id: number;
+            /** Ts */
+            ts?: string | null;
+            /** Usuario */
+            usuario?: string | null;
+            /** Conversacion Id */
+            conversacion_id?: string | null;
+            /** Texto Pregunta */
+            texto_pregunta: string;
+            /**
+             * Grupo Asignado
+             * @enum {string}
+             */
+            grupo_asignado: "jerarquizar" | "cuantificar" | "analizar" | "desconocido";
+            /** Capa Resolutora */
+            capa_resolutora: string;
+            /** Entidad Cruda */
+            entidad_cruda?: string | null;
+            /** Llm Diag */
+            llm_diag?: string | null;
+            /** Veredicto */
+            veredicto: string;
+            /** Grupo Correcto */
+            grupo_correcto?: ("jerarquizar" | "cuantificar" | "analizar" | "desconocido") | null;
+            /** Fuente Veredicto */
+            fuente_veredicto?: string | null;
+            /** Nota Revision */
+            nota_revision?: string | null;
         };
         /**
          * FilaTablaOut
@@ -984,6 +1105,29 @@ export interface components {
              * @default []
              */
             series: components["schemas"]["SerieHuellaOut"][];
+        };
+        /** ItemVeredicto */
+        ItemVeredicto: {
+            /** Log Id */
+            log_id: number;
+            /**
+             * Veredicto
+             * @enum {string}
+             */
+            veredicto: "confirmado_revision" | "corregido_revision";
+            /** Grupo Correcto */
+            grupo_correcto?: ("jerarquizar" | "cuantificar" | "analizar" | "desconocido") | null;
+        };
+        /** LibretaOut */
+        LibretaOut: {
+            /** Filas */
+            filas: components["schemas"]["FilaLibreta"][];
+            resumen: components["schemas"]["ResumenLibretaOut"];
+            /**
+             * Truncado
+             * @default false
+             */
+            truncado: boolean;
         };
         /**
          * LoginRequest
@@ -1334,6 +1478,24 @@ export interface components {
             racha_maxima: number;
         };
         /**
+         * ResumenLibretaOut
+         * @description Los KPIs del ciclo de crecimiento.
+         *
+         *     `pct_capa1` es `None` —no 0— cuando la libreta está vacía: un 0 % afirmaría
+         *     que la regex no resuelve nada, que es una conclusión muy distinta de «aún no
+         *     hay datos».
+         */
+        ResumenLibretaOut: {
+            /** Total */
+            total: number;
+            /** Por Veredicto */
+            por_veredicto: {
+                [key: string]: number;
+            };
+            /** Pct Capa1 */
+            pct_capa1?: number | null;
+        };
+        /**
          * SerieHuellaOut
          * @description METADATA: cuenta FILAS, no barriles. Muestra en qué facts vive la entidad.
          */
@@ -1549,6 +1711,35 @@ export interface components {
             veredicto: "confirmado_usuario" | "corregido_usuario";
             /** Grupo Correcto */
             grupo_correcto?: ("jerarquizar" | "cuantificar" | "analizar" | "desconocido") | null;
+        };
+        /**
+         * VeredictoLoteIn
+         * @description Un lote de juicios del Control 3.
+         *
+         *     El tope de 500 no es burocracia: sin él, un cliente podría mandar la libreta
+         *     entera en una petición y el bucle de escritura bloquearía el hilo.
+         */
+        VeredictoLoteIn: {
+            /** Items */
+            items: components["schemas"]["ItemVeredicto"][];
+            /** Nota */
+            nota?: string | null;
+        };
+        /**
+         * VeredictoLoteOut
+         * @description Cuántos se aplicaron de cuántos se pidieron.
+         *
+         *     Devolver solo `ok: true` escondería que 30 de 100 veredictos no se
+         *     guardaron —por un id que ya no existe, o por una corrección sin grupo—, y el
+         *     revisor daría por juzgada una cola que sigue pendiente.
+         */
+        VeredictoLoteOut: {
+            /** Ok */
+            ok: boolean;
+            /** Aplicados */
+            aplicados: number;
+            /** Total */
+            total: number;
         };
         /** VeredictoOut */
         VeredictoOut: {
@@ -2905,6 +3096,133 @@ export interface operations {
             };
             /** @description PostgreSQL (`db_prod`) no disponible */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listar_libreta_api_v1_consulta_revision_libreta_get: {
+        parameters: {
+            query?: {
+                limite?: number;
+                filtro?: "todas" | "pendientes" | "sospecha" | "corregidas";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibretaOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requiere privilegios de administrador */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    veredicto_lote_api_v1_consulta_revision_veredicto_lote_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VeredictoLoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VeredictoLoteOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requiere privilegios de administrador */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    escanear_senales_api_v1_consulta_revision_escanear_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EscaneoOut"];
+                };
+            };
+            /** @description No autenticado — falta la cookie de sesión o es inválida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requiere privilegios de administrador */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -15,10 +15,12 @@ import structlog
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 import src.shared.db_auth as _db_auth_module
 from src.features.auth.models import PermissionGroup, User
 from src.shared.db_auth import Base
+from src.shared.db_auth import get_db as _get_db
 
 # ── Logging aislado por test ────────────────────────────────────────────────
 
@@ -53,6 +55,17 @@ def _make_integration_engine() -> Engine:
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        # 🔑 `StaticPool` es obligatorio con `:memory:`. Sin él, el pool abre una
+        # conexión NUEVA por cada checkout, y en SQLite cada conexión a
+        # `:memory:` crea su PROPIA base vacía: las tablas que este módulo crea
+        # aquí no existirían para el resto del proceso.
+        #
+        # Los tests que solo usan `SessionLocal` no lo notaban porque reutilizan
+        # la misma sesión de principio a fin. Se destapó al montar el primer
+        # endpoint que resuelve su sesión por `Depends`: pedía una conexión
+        # distinta y encontraba una base sin ninguna tabla ("no such table:
+        # clasificacion_log"), que el manejador global traducía a un 503.
+        poolclass=StaticPool,
     )
 
     @event.listens_for(engine, "connect")
@@ -148,7 +161,25 @@ def patch_db_for_integration(
         if not existing:
             _seed_integration_db(session)
 
+    # `get_db` se importa POR VALOR en los routers (`from ... import get_db`),
+    # así que parchear `SessionLocal` no alcanza a las dependencias ya resueltas
+    # por FastAPI: seguirían abriendo la BD real de archivo. El
+    # `dependency_overrides` es el mecanismo del framework para esto, y es el
+    # mismo patrón que F1 introdujo para `get_prod_db`.
+    from src.main import app
+
+    def _sesion_de_test() -> Any:
+        db = integration_session()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[_get_db] = _sesion_de_test
+
     yield integration_session
+
+    app.dependency_overrides.pop(_get_db, None)
 
 
 # ── Fixtures base ────────────────────────────────────────────────────────────
