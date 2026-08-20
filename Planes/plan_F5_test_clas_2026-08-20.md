@@ -1,14 +1,35 @@
 # Plan F5 — Test Clas · laboratorio del clasificador
 
-> **Estado del plan: v2 — auditado contra los pipelines y corregido.** Los pasos 1-3 del flujo
-> de 6 (Mapeo → Auditoría → Diagnóstico) se ejecutaron contra el código real el 2026-08-20: el
-> origen en `12112025_prodIA/`, el destino en `ProdIA_V02/`, y **los seis pipelines
-> configurados** (`ci.yml`, `.pre-commit-config.yaml`, `pyproject.toml`, `vitest.config.ts`,
-> `alembic.ini`, `package.json`). Todos los números están **medidos**, no estimados.
+> **Estado del plan: v3 — reauditado contra F4 ya entregada.** Los pasos 1-3 del flujo de 6
+> (Mapeo → Auditoría → Diagnóstico) se ejecutaron contra el código real: el origen en
+> `12112025_prodIA/`, el destino en `ProdIA_V02/`, y **los seis pipelines configurados**
+> (`ci.yml`, `.pre-commit-config.yaml`, `pyproject.toml`, `vitest.config.ts`, `alembic.ini`,
+> `package.json`). Todos los números están **medidos**, no estimados.
 >
-> **⛔ LEE §0.1 ANTES DE NADA.** Este plan **no es ejecutable hoy**: F5 depende de F4, que no
-> existe. El plan está escrito para ejecutarse el día que F4 cierre, y los prerequisitos de §3
-> están redactados para **fallar en voz alta** si se intenta antes.
+> **✅ F5 YA ES EJECUTABLE.** F4 cerró el 2026-08-20 (commit `76167ad`). Las anclas de §3 se
+> corrieron contra el código entregado y **F5 tiene vía libre**, con cuatro ajustes que están
+> en §0.0. Queda una condición de negocio, no técnica: ver §0.0.5 (el golden al 81 %).
+>
+> ---
+>
+> ### Qué cambió de v2 a v3 — la reauditoría contra F4 entregada
+>
+> v2 se escribió cuando F4 no existía y citaba los nombres del **sistema viejo**. F4 los
+> castellanizó, que es lo correcto según §0 de CLAUDE.md. Además, **F4 implementó parte de lo
+> que su propio plan asignaba a F5**. Cuatro ajustes, todos verificados leyendo el código:
+>
+> | # | Lo que decía v2 | Lo que hay realmente | Efecto en F5 |
+> |---|---|---|---|
+> | **R-1** | `maquina_q.py` · `log.py` | **`maquina.py`** · **`libreta.py`** | Solo renombrar las anclas de §3. Las funciones existen |
+> | **R-2** | F5 escribe `marcar_sospecha`, `_FILTROS` y `listar` | **Ya existen** en `libreta.py:132-182` | −55 líneas de trabajo, **+1 corrección** sobre código ajeno (R-3) |
+> | **R-3** | §5.2 diseñaba el filtro tipado desde cero | `listar()` trae el **fallback mudo** y el **f-string** que §5.2 venía a evitar, con un `noqa: S608` encima | §5.2 pasa de diseño nuevo a **corrección de un bug existente**. Sube de prioridad |
+> | **R-4** | Migración de índice «si falta» | `ix_clasificacion_log_veredicto_ts` sobre `(veredicto, ts)` **ya está** en la `0004` | §4.3 se cierra **sin trabajo** |
+>
+> Lo que v2 dio por pendiente y **sigue pendiente entero**, verificado: `senales.py` no existe
+> (0 archivos, 0 `def similitud`), `require_admin` **no se usa** en `api.py` (`grep -c` → 0),
+> no hay `GET /log` ni `/veredicto_lote`, no hay `RutaAdmin`, no hay frontend de Test Clas.
+>
+> ---
 >
 > ### Qué cambió de v1 a v2
 >
@@ -26,7 +47,101 @@
 
 ## 0. Hallazgos de la auditoría — LEER PRIMERO
 
-### 0.1 ⛔ H1 (bloqueante) — F5 no es una fase independiente: es la UI de revisión de F4
+### 0.0 Estado real de F4 — medido el 2026-08-20 sobre el commit `76167ad`
+
+#### 0.0.1 Las anclas bloqueantes, corridas
+
+| Ancla | Esperado | Medido | |
+|---|---|---|---|
+| `ls src/features/ \| grep -c '^consulta$'` | 1 | **1** | ✅ |
+| `def clasificar` en `maquina_q.py` | ≥1 | el archivo es **`maquina.py`** | ⚠️ R-1 |
+| `def registrar` en `log.py` | 1 | el archivo es **`libreta.py`** | ⚠️ R-1 |
+| `clasificacion_log` en migraciones | ≥1 | **7** ocurrencias, migración `0004` | ✅ |
+
+Las dos ⚠️ fallan **por nombre, no por ausencia**: `maquina.py` expone `clasificar()` y
+`clasificar_nucleo()`; `libreta.py` expone `registrar()` y `poner_veredicto()`. **F4 está
+completa.** Las anclas corregidas están en §3.
+
+#### 0.0.2 Lo que F4 dejó hecho del alcance de F5
+
+Su propio plan (§9) decía: *"F5: `/veredicto_lote`, `/log`, `revisar_lote.py` y el Control 3"*.
+Pero `libreta.py` ya trae, verificado:
+
+| Función | Línea | Estado |
+|---|---|---|
+| `marcar_sospecha(db, log_id, nota)` | `libreta.py:132` | ✅ Con la guarda `WHERE veredicto='pendiente'` intacta (§5.3) |
+| `_FILTROS` | `libreta.py:152` | ⚠️ Semántica cambiada — ver 0.0.4 |
+| `listar(db, limite, filtro)` | `libreta.py:160` | ⚠️ Con dos defectos — ver 0.0.3 |
+
+**F5 hereda ~55 líneas menos de trabajo**, y a cambio dos correcciones sobre código ajeno. Es
+un buen canje, pero hay que hacerlas: si no, F5 construye una UI encima de un listado que miente.
+
+#### 0.0.3 🔴 `listar()` arrastra los dos defectos que §5.2 venía a corregir
+
+```python
+condicion = _FILTROS.get(filtro, "1=1")          # libreta.py:167 — fallback MUDO
+...
+text(f"""... WHERE {condicion} ...""")           # libreta.py:170-178 — f-string
+    # noqa: S608 — `condicion` sale de `_FILTROS`, nunca del usuario
+```
+
+El `noqa: S608` prueba que el ejecutor de F4 **vio la advertencia de ruff y la silenció** en vez
+de tipar el parámetro. Hoy no es inseguro —`condicion` sí sale del diccionario—, pero el
+`noqa` deja el patrón normalizado para el siguiente que añada un filtro.
+
+El fallback mudo **sí es un bug hoy**: `filtro="sospechas"` (en plural) no falla — devuelve la
+libreta **entera**, y el revisor cree estar viendo solo las sospechas. Sobre el dato que decide
+qué entra al golden, es exactamente el tipo de mentira silenciosa que este proyecto persigue.
+
+**§5.2 sube de prioridad**: pasa de «diseño nuevo» a «corrección de un bug existente», y se
+ejecuta en **B1**, antes de que nada del frontend dependa de ese listado.
+
+#### 0.0.4 ⚠️ `_FILTROS` cambió de semántica respecto al origen
+
+| Filtro | Origen (`log.py:74-79`) | F4 (`libreta.py:152-157`) |
+|---|---|---|
+| `pendientes` | `veredicto IN ('pendiente','sospecha')` | **`veredicto = 'pendiente'`** |
+| `corregidas` | `veredicto IN ('corregido_usuario','corregido_revision')` | `veredicto LIKE 'corregido%'` |
+
+El cambio en `corregidas` es equivalente y más corto: sin problema.
+
+El de `pendientes` **no es equivalente**: con la versión de F4, el filtro «Pendientes»
+**oculta las sospechas**, que son justo las que más valor tienen para revisar — y la propia
+docstring de `listar()` dice *"las sospechosas primero. El orden no es cosmético"*. El módulo se
+contradice a sí mismo.
+
+**Decisión del plan: se restaura la semántica del origen.** «Pendientes» = *todo lo que falta
+por juzgar*, sospechas incluidas. Con un test que lo fija, porque es una decisión que se puede
+volver a perder en un refactor.
+
+#### 0.0.5 ⚠️ Condición de negocio antes de empezar: el golden está al 81 %
+
+F4 reporta el golden de clasificación en **61/75 (81 %)**, por debajo del gate del 90 %, medido
+**sin Ollama** (21 casos dependen del modelo). Los otros dos sets pasan: analizar 10/10,
+cuantificar 24/24.
+
+F5 es el laboratorio que **audita lo que ese clasificador decide**. Si el motor está 9 puntos
+bajo su gate, la libreta se llenará de correcciones que son fallos ya conocidos del motor, no
+hallazgos nuevos — y el revisor gastará su tiempo confirmando lo que el golden ya dijo.
+
+**Antes de B1, correr el golden con VPN y Ollama:**
+
+```bash
+cd prodia_v02_backend
+uv run python scripts/golden_consulta.py --set clasificacion
+```
+
+| Resultado | Qué hacer |
+|---|---|
+| **≥90 %** | F5 arranca. El gate se cumple y la libreta medirá deriva real |
+| **<90 %** | **Parar y avisar.** Lo que toca es engordar patrones en F4 (regla A4), no construir el laboratorio |
+
+No es una regla burocrática: construir la herramienta de medición sobre un motor que no pasa su
+propio examen produce datos de revisión contaminados, y esos datos **alimentan el golden**.
+
+---
+
+### 0.1 H1 — F5 no es una fase independiente: es la UI de revisión de F4
 
 Test Clas **no clasifica nada**. Su chat de prueba llama a `POST /api/consulta2/preguntar`
 (`multitab_shell.js:4619`), que en el origen es literalmente
@@ -41,16 +156,19 @@ el aparato de **juicio** sobre lo que ese motor decidió:
 | Control 3 (revisión por lotes) | Lo mismo |
 | `cargar_golden_libreta.py` | `clasificar()` + `clasificacion_golden.yaml` |
 
-Medido en el destino hoy: `ls src/features/ | grep -c '^consulta$'` → **0**. No hay motor, no
-hay tabla, no hay tráfico. Ejecutar F5 antes de F4 produciría una pantalla que lista una tabla
-vacía de una base que no existe.
+**Verificado el 2026-08-20**: las cinco dependencias están satisfechas (§0.0.1). En V02 los
+nombres son `maquina.clasificar()`, `libreta.registrar()` y el endpoint es
+`POST /api/v1/consulta/preguntar`.
 
-**El roadmap de CLAUDE.md §10 ya lo dice** (`F5 … depende de F4`) y el plan de F4 delimita la
-frontera con precisión en su §9: *"F5 (Test Clas): `/veredicto_lote`, `/log`,
+El plan de F4 delimita la frontera en su §9: *"F5 (Test Clas): `/veredicto_lote`, `/log`,
 `revisar_lote.py` y el Control 3. F4 deja la libreta escribiendo y el Control 1 (✓/✗ en la
-burbuja); la revisión por lotes es F5."*
+burbuja); la revisión por lotes es F5."* En la práctica **F4 cruzó esa frontera** y dejó hechas
+`marcar_sospecha`, `_FILTROS` y `listar` (§0.0.2).
 
-Este plan **respeta esa frontera exacta**. No adelanta nada de F4 ni la duplica.
+Esto no es un problema, es un dato: F5 **no reescribe** esas tres, las **corrige** donde hacen
+falta (§0.0.3, §0.0.4) y construye encima. Lo que sí sigue valiendo es la dirección de la
+dependencia: F5 consume el motor, nunca lo modifica. Cualquier cambio en `maquina.py`,
+`clasificador.py` o `patrones.py` está **fuera de alcance** (§9).
 
 ### 0.2 Correcciones al inventario de CLAUDE.md §6
 
@@ -172,10 +290,12 @@ CLAUDE.md §10 lo define como *admin-only*. El origen **no tiene autenticación 
 (CLAUDE.md §1: `grep -r "ldap\|jwt\|session\|HTTPBearer"` → 0 resultados), así que no hay nada
 que portar: se construye.
 
-Medido en el destino:
-- Backend: `require_admin` **ya existe** (`shared/auth_guards.py:23`, `grep -c` → 1). Listo.
-- Frontend: `ProtectedRoute` **no conoce admin** (`grep -c admin` → 0). Hay que añadir la
-  variante.
+Medido en el destino tras F4:
+- Backend: `require_admin` **existe** (`shared/auth_guards.py:23`) pero **`api.py` de consulta
+  NO lo usa** (`grep -c require_admin` → **0**). Su docstring lo declara: *"Acceso: todo usuario
+  autenticado"*. Correcto para F4; F5 monta su router aparte.
+- Frontend: `ProtectedRoute` **no conoce admin** (`grep -c` → 0) — y **no debe conocerlo**
+  (AP-8). Se añade `RutaAdmin`, que hoy no existe (verificado).
 - `MenuUsuario` **ya tiene el patrón** `soloAdmin` (`grep -c` → 4) con rutas `/admin`,
   `/settings`, `/help` que todavía dan 404. F5 añade su entrada ahí.
 
@@ -192,7 +312,7 @@ Leídos y medidos uno a uno el 2026-08-20. Los cinco últimos son los que **corr
 | AP-2 | `uv run pytest --cov=src --cov-fail-under=75` (`ci.yml:37`) | `revisar_lote.py` es un CLI **interactivo** (`input()` en bucle). Bajo `src/` cuenta como código sin cubrir y hunde el umbral | Va a **`scripts/`** como `humo_ingesta.py` de F3: **verificado** que `--cov=src` no lo alcanza. Su lógica pura sí se extrae a `src` y sí se prueba |
 | AP-3 | Hook `gen-types-check` → `pnpm run gen:types` → `scripts/export_openapi.py` → **importa `src.main`** | Si el `yaml.safe_load` de `senales.py` queda como constante de módulo, rompe CERO I/O al importar; el test-espía (`test_sin_io_al_importar.py`) lo caza | Conservar el singleton perezoso `_cfg()` del origen (`senales.py:30-34`) **tal cual**: aquí el origen ya lo hace bien |
 | AP-4 | `vitest` `thresholds: {lines,branches,functions,statements: 80}` + `singleFork:true` | La libreta con teclado y rollback es la parte con más ramas. `singleFork` implica que **un fallo de importación contamina la corrida entera** (lección de F2) | `userEvent.keyboard` para `1/2/3/4/Enter/↑↓` + test de rollback. Sin imports pesados en la página |
-| AP-5 | `alembic.ini` versiona **solo `db_auth`** | Coherente con DA-2 (la libreta está en `db_auth`): un índice nuevo sí puede versionarse | §4.3 — migración **solo si** la de F4 no indexó `veredicto` |
+| AP-5 | `alembic.ini` versiona **solo `db_auth`** | Coherente con DA-2 (la libreta está en `db_auth`) | ✅ **Cerrado sin trabajo (R-4)**: la `0004` ya crea `ix_clasificacion_log_veredicto_ts` sobre `(veredicto, ts)`, que es justo el `ORDER BY` de las dos consultas calientes. **F5 no lleva migración** |
 | AP-6 | `pnpm build` desde la raíz | Corregido el 2026-08-20 (DT-7): `build`/`build:front` ya existen | Nada que hacer, pero **no volver a tocarlo** (R1) |
 | **AP-7** | `mypy --strict` vs. **PyYAML** | 🔴 **`import yaml` NO COMPILA.** `yaml` no trae `py.typed` y no está en `[[tool.mypy.overrides]]`. Reproducido con un módulo de prueba: `error: Library stubs not installed for "yaml" [import-untyped]`. Habría roto el pre-commit **y** CI en el primer commit de F5 (y de F4) | ✅ **Ya resuelto y verificado (2026-08-20)**: `types-PyYAML` declarado en `[project.optional-dependencies].dev` —el grupo que instala `uv sync --extra dev` de CI, **no** el `[dependency-groups]` que crea `uv add --dev` por defecto—. `mypy src` vuelve a *Success* |
 | **AP-8** | `router.tsx` + `ProtectedRoute` | 🔴 v1 proponía `soloAdmin` en `ProtectedRoute`, pero **envuelve el layout entero** (ruta pathless con `children`): el flag habría restringido Consulta, Análisis e Ingesta a admins | Guarda **separada** `RutaAdmin`, aplicada solo al `element` de `/test-clas`. La autenticación ya la garantiza el ancestro (§5.8) |
@@ -277,15 +397,22 @@ sistema depende demasiado del LLM).
 
 ## 3. Prerequisitos verificables
 
-Ejecutar desde la raíz del repo. **Los cuatro primeros fallan hoy** — es intencional: son la
-comprobación de que F4 cerró.
+Ejecutar desde la raíz del repo. **Los cuatro primeros ya dan verde** — se corrieron contra el
+commit `76167ad` de F4 el 2026-08-20 (§0.0.1). Se dejan porque son la comprobación de que nadie
+movió el suelo entre la auditoría y la ejecución.
 
 ```bash
-# ── Bloqueantes: F4 tiene que existir ───────────────────────────────────────
-ls prodia_v02_backend/src/features/ | grep -c '^consulta$'                    # espera 1  (hoy: 0)
-grep -c "def clasificar" prodia_v02_backend/src/features/consulta/maquina_q.py # espera >=1 (hoy: no existe)
-grep -c "def registrar"  prodia_v02_backend/src/features/consulta/log.py       # espera 1  (hoy: no existe)
-grep -rc "clasificacion_log" prodia_v02_backend/alembic/versions/              # espera >=1 (hoy: 0)
+# ── Bloqueantes: F4 tiene que existir. NOMBRES REALES DE V02, no los del origen (R-1)
+ls prodia_v02_backend/src/features/ | grep -c '^consulta$'                  # espera 1  ✔
+grep -c "def clasificar" prodia_v02_backend/src/features/consulta/maquina.py # espera 2  ✔ (clasificar + clasificar_nucleo)
+grep -c "def registrar"  prodia_v02_backend/src/features/consulta/libreta.py # espera 1  ✔
+grep -rc "clasificacion_log" prodia_v02_backend/alembic/versions/            # espera 7  ✔ (migración 0004)
+
+# ── R-2: lo que F4 dejó hecho del alcance de F5. Confirmar antes de reescribirlo.
+grep -c "def marcar_sospecha\|def listar\|_FILTROS" prodia_v02_backend/src/features/consulta/libreta.py  # espera 3 ✔
+
+# ── R-4: el índice de la cola YA existe. F5 NO lleva migración.
+grep -c "ix_clasificacion_log_veredicto_ts" prodia_v02_backend/alembic/versions/0004_*.py  # espera 1 ✔
 
 # ── Ya verdes hoy (2026-08-20): no tocar, solo confirmar que siguen ─────────
 grep -c "def require_admin" prodia_v02_backend/src/shared/auth_guards.py       # espera 1  ✔
@@ -306,15 +433,24 @@ grep -c "test-clas" prodia_v02_frontend/src/app/layouts/LayoutMain.tsx          
 **Si el primer bloque no da verde, el ejecutor debe detenerse y decirlo.** No hay forma parcial
 de hacer F5: sin motor no hay clasificaciones que juzgar.
 
-Verificación adicional antes de escribir la primera línea (§0.3 H2 depende de ello):
+### 3.1 La condición de negocio — el golden (§0.0.5)
 
 ```bash
-# ¿Dónde quedó realmente la libreta? DA-2 dice db_auth; confirmarlo contra el código de F4.
-grep -rn "clasificacion_log" prodia_v02_backend/src/features/consulta/ | head
+cd prodia_v02_backend && uv run python scripts/golden_consulta.py --set clasificacion
 ```
 
-Si F4 la hubiera dejado en `db_prod` en vez de `db_auth`, **todo §0.3 H2 se invierte** (el SQL
-del origen sirve tal cual) y este plan debe re-auditarse antes de ejecutarse.
+**≥90 %** → adelante. **<90 %** → parar y avisar: toca engordar patrones en F4, no construir el
+laboratorio. Requiere VPN y Ollama; la medición sin modelo (61/75) **no sirve** para decidir.
+
+### 3.2 Dónde vive la libreta — ya confirmado
+
+`libreta.py:3-11` lo documenta y el código lo confirma: **`db_auth`**, vía `Session` inyectada
+(`api.py:38` usa `get_db`, no `get_prod_db`). Es SQLite, así que **H2 aplica en su totalidad**:
+nada de `make_interval` ni `now()` en el SQL de `senales.py`.
+
+Detalle heredado que conviene ver antes de escribir: `libreta.py` **no usa `now()` en ningún
+sitio** — `poner_veredicto` escribe `ts_veredicto = CURRENT_TIMESTAMP` (`libreta.py:115`), que
+sí es portable. F4 ya resolvió esa parte bien; F5 solo tiene que no reintroducir el problema.
 
 ---
 
@@ -323,16 +459,57 @@ del origen sirve tal cual) y este plan debe re-auditarse antes de ejecutarse.
 ### 4.1 Backend — `src/features/consulta/` (se **amplía** lo de F4, no se crea feature nueva)
 
 Test Clas no es una feature aparte: juzga a `consulta`. Crear `features/test_clas/` obligaría a
-importar `consulta.log` desde fuera, violando **ADR-001** (cero imports cross-feature). Vive
+importar `consulta.libreta` desde fuera, violando **ADR-001** (cero imports cross-feature). Vive
 dentro, separado por sufijo — el mismo criterio que F2 usó para partir `analisis`.
 
-| Archivo | Acción | Origen | Notas |
-|---|---|---|---|
-| `log.py` | **ampliar** | `consulta_v2/log.py:61-113` | `marcar_sospecha`, `listar`, `_FILTROS` validados (H3) |
-| `senales.py` | **nuevo** | `consulta_v2/senales.py` (110) | Sin la señal 2 (§1); fechas en Python (H2) |
-| `api_revision.py` | **nuevo** | `consulta_v2/api.py:58-91` | `GET /log`, `POST /veredicto_lote`, `POST /senales/escanear`. Todo con `require_admin` |
-| `schemas_revision.py` | **nuevo** | — | `TypedDict`/Pydantic de fila y resumen (AP-1) |
-| `config/clasificacion_feedback.yaml` | **copiar** | idéntico (9) | Umbrales; carga perezosa (AP-3) |
+| Archivo | Acción | Notas |
+|---|---|---|
+| `libreta.py` | **corregir + ampliar** | `marcar_sospecha` ✅ ya existe. **Corregir `listar` y `_FILTROS`** (§0.0.3, §0.0.4). Añadir el **resumen** (KPIs), que no existe |
+| `senales.py` | **nuevo** (110 líneas de origen) | Sin la señal 2 (§1); fechas en Python (H2) |
+| `api_revision.py` | **nuevo** | `GET /log`, `POST /veredicto_lote`, `POST /senales/escanear`. Router propio con `require_admin` — **`api.py` de F4 no se toca** |
+| `schemas_revision.py` | **nuevo** | `TypedDict`/Pydantic de fila y resumen (AP-1) |
+| `config/clasificacion_feedback.yaml` | ✅ **ya copiado por F4** — **no crear** | Verificado: existe con los 4 umbrales del origen, y **ningún módulo lo lee todavía** (`grep -c` → 0). F5 es su primer consumidor. Carga perezosa (AP-3) |
+
+**Lo que NO existe y F5 debe crear entero** (verificado con `grep -c` → 0): `senales.py`, el
+**resumen de KPIs** (`pct_capa1`, conteos `por_veredicto`) — `listar()` hoy devuelve
+`{"filas": [...]}` y nada más—, y los tres endpoints de revisión.
+
+El resumen no es un adorno: **`pct_capa1` es el criterio de aceptación de la fase** (§2). Sin él,
+la libreta no responde la única pregunta que justifica construirla — *¿cuánto resuelve el regex
+y cuánto depende del LLM?* (regla A4).
+
+⚠️ **`api.py` de F4 no se modifica.** Sus dos endpoints son «todo usuario autenticado» por
+diseño (su docstring lo dice). Los de F5 son admin-only y van en un router aparte, montado en el
+mismo `prefix="/consulta"`. Mezclarlos obligaría a poner `require_admin` por endpoint y a que
+alguien lo olvide en el siguiente.
+
+#### Lo que hay que corregir en `libreta.py`, concreto
+
+```python
+# ANTES (F4) — libreta.py:152-167
+_FILTROS = {
+    "pendientes": "veredicto = 'pendiente'",          # ❌ oculta las sospechas
+    ...
+}
+condicion = _FILTROS.get(filtro, "1=1")               # ❌ fallback mudo
+
+# DESPUÉS (F5)
+FiltroLibreta = Literal["todas", "pendientes", "sospecha", "corregidas"]
+
+_FILTROS: dict[FiltroLibreta, str] = {
+    # «Pendientes» = todo lo que falta por juzgar. La sospecha NO es un veredicto
+    # (§5.3): excluirla escondería justo las filas que más urge revisar, y
+    # contradice el ORDER BY de esta misma función.
+    "pendientes": "veredicto IN ('pendiente', 'sospecha')",
+    "sospecha": "veredicto = 'sospecha'",
+    "corregidas": "veredicto LIKE 'corregido%'",
+    "todas": "1=1",
+}
+condicion = _FILTROS[filtro]     # sin `.get`: un KeyError sería bug nuestro, no del cliente
+```
+
+El `# noqa: S608` puede quedarse —el f-string sigue ahí— pero ahora es **verdad**: con la clave
+tipada, ruff no tiene nada que advertir y el `noqa` documenta en vez de silenciar.
 
 ### 4.2 Backend — `scripts/` (fuera de `--cov=src`, AP-2)
 
@@ -343,16 +520,22 @@ dentro, separado por sufijo — el mismo criterio que F2 usó para partir `anali
 
 ### 4.3 Migraciones
 
-**Probablemente ninguna.** La tabla la crea F4 (su migración `0005`). F5 solo necesita que la
-cola de revisión sea rápida. Verificar y actuar:
+✅ **Ninguna. Cerrado sin trabajo (R-4).**
 
-```bash
-grep -c "create_index.*veredicto" prodia_v02_backend/alembic/versions/*clasificacion*
+La tabla la crea F4 en `0004_consulta_libreta_conversaciones.py`, con todas las columnas que F5
+necesita (`veredicto`, `grupo_correcto`, `fuente_veredicto`, `ts_veredicto`, `nota_revision`,
+`llm_diag`, `patrones_atrapados`) **y con el índice que hace rápida la cola**:
+
+```python
+op.create_index(
+    "ix_clasificacion_log_veredicto_ts",
+    "clasificacion_log",
+    ["veredicto", "ts"],
+)
 ```
 
-- `>= 1` → nada que hacer.
-- `0` → migración `0006_indice_cola_revision`: índice sobre `(veredicto, ts)`, que es el
-  `ORDER BY` de las dos consultas calientes (`log.listar` y `revisar_lote.cola`).
+Es exactamente el `ORDER BY (veredicto='sospecha') DESC, ts DESC` de las dos consultas calientes
+(`listar` y la cola de `revisar_lote`). **F5 no añade ninguna migración.**
 
 ### 4.4 Frontend — `src/features/testclas/`
 
@@ -604,10 +787,10 @@ pasar al siguiente.
 
 | # | Bloque | Entrega | Se verifica con |
 |---|---|---|---|
-| **B0** | Prerequisitos | §3 completo en verde · confirmar dónde quedó la libreta · índice si falta · confirmar que `types-PyYAML` sigue declarado (AP-7) | Los `grep -c` de §3 + `uv run mypy src` |
-| **B1** | `log.py` ampliado | `marcar_sospecha`, `listar` con `Literal` tipado, `TypedDict` de fila y resumen | Tests con `db_auth` en memoria (L2). Incluye el test de §5.3 |
+| **B0** | Prerequisitos | §3 en verde · **§3.1 el golden ≥90 %** · `types-PyYAML` declarado (AP-7) | Los `grep -c` de §3 + `uv run mypy src` + `golden_consulta.py` |
+| **B1** | `libreta.py` corregido y ampliado | **Corregir `_FILTROS` y `listar`** (§0.0.3, §0.0.4) + añadir el **resumen de KPIs** con `pct_capa1` | Tests con `db_auth` en memoria (L2). Incluye §5.3 y **un test que fija que «pendientes» incluye las sospechas** |
 | **B2** | `senales.py` | `similitud` (portada literal, con sus tests del origen) + señales 1 y 3 con fechas en Python | **Tests sin BD** para las ventanas; con BD en memoria para `escanear()` |
-| **B3** | `api_revision.py` | Los 3 endpoints con `require_admin`. **Termina con `pnpm gen:types` y `api.d.ts` commiteado** (AP-11) | Test de **403 no-admin** (fixture de AP-10) y **422** por filtro inválido · `git diff --exit-code api.d.ts` limpio |
+| **B3** | `api_revision.py` | Los 3 endpoints con `require_admin`, en **router propio** (no tocar `api.py` de F4). **Termina con `pnpm gen:types` y `api.d.ts` commiteado** (AP-11) | Test de **403 no-admin** (fixture de AP-10), **422** por filtro inválido, y **que `/consulta/preguntar` de F4 SIGA siendo accesible a un no-admin** — la regresión que delataría un `require_admin` mal puesto · `git diff --exit-code api.d.ts` limpio |
 | **B4** | Scripts + **datos reales** | `revisar_lote.py` + `cargar_golden_libreta.py`, y **cargar los 75 casos del golden en una libreta de verdad** | Idempotencia (2ª pasada = mismos conteos) y cola vacía de pendientes |
 | **B5** | Frontend base | tipos, mappers, service, `useLibreta` con rollback | Test de rollback (§5.5) |
 | **B6** | `ChatPrueba` | Individual + lote en serie con progreso | Tests de componente |
@@ -649,6 +832,12 @@ encuentra. No dejarlo para el final ni saltárselo porque "los tests están verd
     componente nuevo. Tocar el ancestro restringiría las tres secciones existentes.
 8c. **No se toca `_seed_integration_db`** (AP-10): el fixture del no-admin es aditivo y se limpia.
 8d. **`api.d.ts` se regenera y se commitea** en cuanto cambie un endpoint (AP-11).
+8e. **No se toca el motor** (R-3): `maquina.py`, `clasificador.py`, `patrones.py`, `niveles.py`,
+    `dominio.py` y `slots.py` son de F4. F5 los **audita**, no los corrige. Si el laboratorio
+    revela un fallo del clasificador, se **reporta**; arreglarlo es trabajo de F4, con su golden
+    delante. Confundir las dos cosas es cómo se rompe un motor que ya pasa su examen.
+8f. **No se toca `api.py` de F4**: sus endpoints son «todo usuario autenticado» por diseño. Los
+    de F5 van en router aparte, y un test verifica que los de F4 siguen abiertos.
 9. **El estado del chat son datos, nunca HTML** (§0.5).
 10. **R1** — no se toca configuración de pnpm.
 11. **R3** — la fase no se marca completa hasta que el usuario recorra la pantalla en navegador.
@@ -731,7 +920,11 @@ los mismos bugs con otra sintaxis.
 ## 9. Fuera de alcance
 
 - **Todo F4**: el motor, `/preguntar`, el Control 1, la memoria conversacional, los paneles de
-  respuesta. F5 **consume**, no construye.
+  respuesta. F5 **consume**, no construye. Única excepción, acotada y justificada: las dos
+  correcciones a `libreta.py` de §0.0.3 y §0.0.4, porque F5 construye su UI directamente encima
+  de ese listado y heredarlo roto propagaría el defecto a la pantalla.
+- **Subir el golden del 81 % al 90 %.** Es trabajo de F4 (regla A4: engordar patrones). F5 lo
+  **mide y lo expone**; no lo arregla. Si al correr §3.1 sigue por debajo, se para (§0.0.5).
 - **El crecimiento automático de patrones**. La libreta produce el dato verificado; convertirlo
   en patrones nuevos es trabajo humano y deliberado. Automatizarlo cerraría el bucle sin juez.
 - **`consulta/` v1** y el selector de motor: congelados, no se migran.
