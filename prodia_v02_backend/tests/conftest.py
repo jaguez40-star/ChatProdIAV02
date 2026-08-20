@@ -154,6 +154,36 @@ async def integration_client(patch_db_for_integration: Any) -> Any:
         yield client
 
 
+# ── .xlsm de muestra para los extractores de F3 ─────────────────────────────
+
+
+@pytest.fixture(scope="session")
+def libro_muestra_new() -> Any:
+    """El reporte NEW de muestra, cargado UNA vez para toda la suite.
+
+    Alcance `session` a propósito: el libro pesa 125 MB y tener dos vivos a la vez
+    (un fixture por módulo de test) hacía caer el proceso con un access violation de
+    Windows dentro de openpyxl.
+
+    `read_only=True, data_only=True` replica exactamente cómo lo abre el ETL en
+    producción: `data_only` lee los valores calculados en caché, no las fórmulas.
+    """
+    from openpyxl import load_workbook
+
+    from tests.fakes.muestras_xlsm import DIRECTORIO_MUESTRAS, hay_muestras
+
+    if not hay_muestras():
+        pytest.skip(f"no hay .xlsm de muestra en {DIRECTORIO_MUESTRAS}")
+
+    archivos = sorted(DIRECTORIO_MUESTRAS.glob("*New*.xlsm"))
+    if not archivos:
+        pytest.skip("no hay ningún .xlsm NEW de muestra")
+
+    libro = load_workbook(archivos[0], read_only=True, data_only=True, keep_links=False)
+    yield libro
+    libro.close()
+
+
 # ── db_prod (PostgreSQL) en tests — hallazgo H1/H2 del plan F1 ──────────────
 
 

@@ -13,48 +13,31 @@ llevaba meses saltándose sin que nadie lo notara (G9).
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import Any
 
 import pytest
-from openpyxl import load_workbook
-from openpyxl.worksheet.worksheet import Worksheet
 
 from src.features.ingesta.extractores.p50 import (
     extraer_p50_acumulado,
     extraer_p50_quemado,
 )
+from tests.fakes.muestras_xlsm import DIRECTORIO_MUESTRAS, hay_muestras
+from tests.fakes.muestras_xlsm import hoja_de as _hoja
 
-DIRECTORIO_MUESTRAS = Path(
-    r"C:\APLICACIONES\ProdIA\12112025_prodIA\12112025_prodIA\INGESTA\Rep_Prod\Doc_Desing"
-)
-
+# Excluidos del run por defecto (ver `addopts` en pyproject.toml): CI no tiene estos
+# archivos. El libro lo aporta `libro_muestra_new`, un fixture de alcance session
+# (conftest) para no cargar 125 MB por módulo.
 pytestmark = [
-    # Excluidos del run por defecto (ver `addopts` en pyproject.toml): CI no tiene
-    # estos archivos y en local el libro de 125 MB tumba la suite completa.
     pytest.mark.muestras,
     pytest.mark.skipif(
-        not DIRECTORIO_MUESTRAS.exists(),
-        reason=f"no hay .xlsm de muestra en {DIRECTORIO_MUESTRAS}",
+        not hay_muestras(), reason=f"no hay .xlsm de muestra en {DIRECTORIO_MUESTRAS}"
     ),
 ]
 
 
-@pytest.fixture(scope="module")
-def libro_new() -> object:
-    """El reporte NEW de muestra. `read_only` + `data_only` como en producción."""
-    archivos = sorted(DIRECTORIO_MUESTRAS.glob("*New*.xlsm"))
-    if not archivos:
-        pytest.skip("no hay ningún .xlsm NEW de muestra")
-    return load_workbook(archivos[0], read_only=True, data_only=True, keep_links=False)
-
-
-def _hoja(libro: object, prefijo: str) -> Worksheet:
-    nombre = next(
-        (h for h in libro.sheetnames if h.upper().startswith(prefijo.upper())), None  # type: ignore[attr-defined]
-    )
-    if nombre is None:
-        pytest.skip(f"el archivo de muestra no trae la hoja '{prefijo}'")
-    return libro[nombre]  # type: ignore[index,no-any-return]
+@pytest.fixture
+def libro_new(libro_muestra_new: Any) -> Any:
+    return libro_muestra_new
 
 
 # ── P50 Quemado ──────────────────────────────────────────────────────────────
