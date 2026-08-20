@@ -28,9 +28,25 @@ perfil de riesgo por completo: un bug aquí no devuelve datos equivocados, los *
 | **G13** | **`get_settings()` del origen no tiene cache** — relee el `.env` del disco en cada llamada. | `core/config.py:77` del origen | No se porta: el destino ya usa `@lru_cache` (L3). Mencionado para que el executor **no copie ese patrón** | — |
 
 **Cerradas antes de F3** (no repetir): DT-5, DT-6 y la ausencia de `pnpm build` en CI se
-corrigieron el 2026-08-20. El CI está verde. La infraestructura de test sin Postgres
-(`app.dependency_overrides[get_prod_db]` + `tests/fakes/prod_db_falsa.py`) ya existe de F1
-y **se reutiliza**, no se reinventa.
+corrigieron el 2026-08-20. El CI está verde.
+
+---
+
+## 0-bis. Verificación del plan contra los pipelines (2026-08-20, v2)
+
+Auditoría del propio plan contra el código y los pipelines reales. **8 incoherencias**, dos
+de ellas invalidan afirmaciones del v1.
+
+| # | Incoherencia | Evidencia | Acción |
+|---|---|---|---|
+| **V1** | 🔴 **Otra sesión está trabajando en el repo AHORA.** Hay cambios sin commitear que no son de F3: `ci.yml`, `core/config.py`, `.env`, `.env.example`, `.gitignore`, `vitest.setup.ts`, y un directorio nuevo `shared/components/Grafico/`. Es la ejecución de **F2**. | `git status` con 7 archivos modificados ajenos a F1/F3 | **F3 NO arranca hasta que F2 commitee.** F3 toca los MISMOS archivos (`config.py` para settings de subida, `main.py` para el router, `pyproject.toml`). Coordinar o esperar |
+| **V2** | 🔴 **El doble de test de F1 NO sirve para F3.** El v1 decía "reutilizar, no reinventar" — **es falso**. `prod_db_falsa.py` reconoce consultas por subcadenas de `SELECT` y lanza `ConsultaNoReconocidaError` ante cualquier otra cosa. F3 hace INSERT/UPSERT/DELETE: **todos** caerían en ese error. | `tests/fakes/prod_db_falsa.py` — todos los patrones son SELECT | **Extender** el doble para escrituras: registrar qué se escribió y con qué parámetros, para poder afirmar en tests que ningún DELETE va sin `WHERE reporte_id`. Es trabajo nuevo del Bloque 1, no reutilización |
+| **V3** | 🔴 **Alembic no gestiona `db_prod`.** El `env.py` lo dice explícitamente y apunta a `database_url` (SQLite de auth). No existe mecanismo de migración para PostgreSQL en el proyecto. | `alembic/env.py:6` («…`db_prod`, no por Alembic») y `:27` | F3 necesita `bronze.*` + 14 `core.*`. Con DA-1 (dump local) el esquema **viene con el dump** — pero hay que **decidirlo explícitamente** (DA-6) y verificarlo (P3), no asumirlo |
+| **V4** | 🟠 **`get_prod_db` no da control transaccional.** Hace `yield db` + `finally: db.close()`, sin `begin()`/`commit()`. F3 necesita UNA transacción explícita que envuelva todo el ETL **y** el advisory lock. | `shared/db_prod.py:42-47` | Añadir una dependencia nueva (p. ej. `get_prod_tx`) que abra transacción y haga commit/rollback, **sin tocar `get_prod_db`** (lo usa F1). Ver §5.7 |
+| **V5** | 🟠 **CI ahora importa `src.main`** (paso `export_openapi.py`, añadido por la sesión de F2). | `ci.yml:31` | **Restricción nueva**: ningún módulo de F3 puede hacer I/O en tiempo de import (abrir Postgres, leer el `.xlsm`, conectar a nada). Si lo hace, CI se cuelga o falla. El propio comentario del CI dice que es la red que caza justo eso |
+| **V6** | 🟠 **El SSE end-to-end NO está verificado.** Se intentó medir in-process y **la medición no fue concluyente** (el buffering observado venía del transporte de httpx, no de los middlewares). El riesgo real está en la cadena completa: `BaseHTTPMiddleware` → uvicorn → proxy de Vite. | Medición fallida documentada; `request_logger.py` usa `BaseHTTPMiddleware` | **Espolón obligatorio en el Bloque 0**: un endpoint SSE trivial, servido por uvicorn real, consumido desde el navegador a través del proxy de Vite. Si bufferea, TODO el diseño de progreso en vivo cambia. Es barato y elimina el mayor riesgo de F3 |
+| **V7** | 🟡 **El proxy de Vite no está configurado para SSE.** Solo `target` + `changeOrigin`; nada sobre buffering ni timeouts, y una ingesta dura minutos. | `vite.config.ts:15-17` | Parte del espolón V6. Si hace falta, añadir configuración de proxy (y eso toca `vite.config.ts`, que es infraestructura → avisar) |
+| **V8** | 🟡 **`latency_ms` del log miente en respuestas streaming.** Medido: una respuesta de 750 ms se registró como `latency_ms=0.79`. El middleware mide hasta el primer byte, no hasta el final. | Prueba propia con `RequestLoggerMiddleware` real | No es bloqueante, pero el log de una ingesta de 4 minutos dirá milisegundos. Documentarlo para que nadie diagnostique con ese dato |
 
 ---
 
@@ -254,19 +270,41 @@ Usar el patrón de F1: doble de sesión con `app.dependency_overrides`, **cero P
 
 ## 6. Orden de ejecución
 
-**Bloque 0 — Prerequisitos y andamiaje**
-1. Resolver **DA-1** (¿contra qué BD se desarrolla?) — bloqueante, ver §10.
-2. Verificar P3 contra esa BD: existencia de `bronze.*` y `core.*`, y que
-   `fact_tabla_hoja.fecha` sea NULLable (G7).
-3. Confirmar P4: `.xlsm` de muestra NEW y STD disponibles para los tests.
-4. Añadir `sse-starlette` a `pyproject.toml` + `uv sync`.
-5. Añadir settings de subida a `core/config.py` (directorio destino, tamaño máximo).
+**Bloque −1 — Coordinación (V1) · ANTES DE TOCAR NADA**
+0. Comprobar `git status`. Si hay cambios sin commitear de **F2** (`config.py`, `ci.yml`,
+   `.env`, `Grafico/`…), **PARAR**: F3 modifica los mismos archivos. Esperar a que F2
+   commitee, hacer `git pull`, y partir de ahí. Trabajar en paralelo sobre `config.py` y
+   `main.py` garantiza conflictos.
 
-**Bloque 1 — Base del ETL (sin BD todavía)**
-6. `celdas.py` (portar `shared/utils.py`) + sus tests.
-7. `detector.py` y `transforms.py` (portados) + tests NEW/STD.
-8. `schemas.py`: DTOs, eventos SSE tipados y códigos de error (G10).
-9. **Verificar**: `ruff`, `black`, `mypy src`, `pytest --cov=src --cov-fail-under=75`.
+**Bloque 0 — Prerequisitos, espolón y andamiaje**
+1. **Espolón SSE (V6/V7) — PRIMERO, antes de escribir una línea de la feature.** Un
+   endpoint `/api/v1/_espolon-sse` trivial que emita 5 eventos con 1 s de separación,
+   servido por **uvicorn real**, consumido **desde el navegador a través del proxy de
+   Vite**. Si los eventos no llegan de uno en uno, el diseño de progreso en vivo cambia
+   por completo (habría que ir a polling de jobs). Descartar este riesgo cuesta 20 minutos
+   y evita rehacer los Bloques 4 y 5. **Borrar el espolón al terminar.**
+2. Montar el **Postgres local** y restaurar el dump (DA-1). Cambiar `PROD_DATABASE_URL` a
+   `localhost` y **verificar a dónde apunta** antes de la primera escritura.
+3. Verificar P3 contra esa BD: existen `bronze.*` y las 14 `core.*`, y
+   `fact_tabla_hoja.fecha` es **NULLable** (G7). Resolver **DA-6** (V3): si el dump no trae
+   el esquema, definir cómo se crea — Alembic **no** gestiona Postgres.
+4. Confirmar P4: hay `.xlsm` de muestra NEW y STD (`Rep_Prod/Doc_Desing/`).
+5. Añadir `sse-starlette` a `pyproject.toml` + `uv sync`. **Comprobar que no rompe
+   `mypy src`**: si no trae stubs, añadirla a los overrides de `ignore_missing_imports`
+   (como ya está `openpyxl.*`).
+6. Añadir settings de subida a `core/config.py` (directorio destino, tamaño máximo) —
+   **con default vacío/seguro**, siguiendo el criterio que F2 ya aplicó ahí: un campo
+   obligatorio rompería `export_openapi.py` y con él el CI (V5).
+
+**Bloque 1 — Base del ETL y andamiaje de test (sin BD real)**
+7. **Extender el doble de escrituras (V2)** — no reutilizar el de F1 tal cual: soportar
+   INSERT/UPSERT/DELETE, registrando sentencia y parámetros para poder afirmar en los
+   tests que **ningún DELETE va sin `WHERE reporte_id`**.
+8. `celdas.py` (portar `shared/utils.py`) + tests.
+9. `detector.py` y `transforms.py` (portados) + tests NEW/STD.
+10. `schemas.py`: DTOs, eventos SSE tipados y códigos de error (G10).
+11. **Verificar**: `ruff`, `black`, `mypy src`, `uv run python scripts/export_openapi.py`
+    (V5 — debe importar `src.main` sin colgarse) y `pytest --cov=src --cov-fail-under=75`.
 
 **Bloque 2 — Los 17 extractores** (el grueso; varios turnos)
 10. `extractores/comunes.py` (helpers `_grid`, `_p50_contig_months`, …).
@@ -275,11 +313,15 @@ Usar el patrón de F1: doble de sesión con `app.dependency_overrides`, **cero P
 13. **Un test por extractor** contra el `.xlsm` de muestra (G5/G9).
 14. **Verificar** con los comandos de CI.
 
-**Bloque 3 — Repositorio y orquestador**
-15. `repositories.py`: SQL idéntico, con el test que prohíbe DELETE sin `WHERE reporte_id`.
-16. `services.py`: `ingerir_archivo` — flujo, bifurcación NEW/STD, `pg_advisory_xact_lock`.
-17. Tests de servicio con repositorio falso (orden, bifurcación, eventos).
-18. **Verificar**.
+**Bloque 3 — Transacción, repositorio y orquestador**
+15. **Dependencia transaccional `get_prod_tx` (V4)**: abre transacción, hace commit al
+    salir bien y rollback ante excepción. **No tocar `get_prod_db`** — lo usa F1 y romperlo
+    rompería `tablas`. Con su test.
+16. `repositories.py`: SQL idéntico, con el test que prohíbe DELETE sin `WHERE reporte_id`.
+17. `services.py`: `ingerir_archivo` — flujo, bifurcación NEW/STD, `pg_advisory_xact_lock`
+    tomado **dentro** de la transacción (`_xact_` se libera solo al terminarla).
+18. Tests de servicio con repositorio falso (orden, bifurcación, eventos).
+19. **Verificar**.
 
 **Bloque 4 — API y SSE**
 19. `api.py`: subir, `check-existing`, progreso SSE, jobs. Validación completa (§5.5).
@@ -371,3 +413,5 @@ Anclas de paridad: `DATOS_MES` = **7.776** filas · `TD_datos_dia` = **5.209** f
 | **DA-2** | ¿Se acepta la estructura de `extractores/` por familias (§4)? | Al empezar el Bloque 2 |
 | **DA-4** | ¿La subida es siempre asíncrona con SSE, o se mantienen también los endpoints síncronos (`/archivo`, `/jobs`)? | Al empezar el Bloque 4 |
 | **DA-5** | ¿Dónde se guardan los `.xlsm` subidos y se conservan tras ingerir? | En el Bloque 0, al crear el setting de P6 |
+| **DA-6** | **(V3)** Si el dump no trae el esquema `bronze.*`/`core.*` completo, ¿cómo se crea y versiona? Alembic solo gestiona `db_auth` (SQLite). Opciones: (a) segundo entorno Alembic para Postgres, (b) SQL versionado aplicado a mano, (c) asumir que el dump lo trae. | Bloque 0, paso 3 — antes de escribir cualquier repositorio |
+| **DA-7** | **(V6)** Si el espolón demuestra que el SSE se bufferea en la cadena uvicorn+Vite, ¿se ajusta la infraestructura (tocar `vite.config.ts`) o se cambia a polling de jobs? | Bloque 0, paso 1 — el resultado del espolón lo decide |
