@@ -19,6 +19,7 @@ coverage/
 # ── Datos y secretos — NUNCA versionar ────────────────────────────────────────
 .env
 .env.local
+.env.respaldo*
 prodia_v02_backend/data/*.db
 prodia_v02_backend/data/*.db-wal
 prodia_v02_backend/data/*.db-shm
