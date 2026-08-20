@@ -102,6 +102,20 @@ class Settings(BaseSettings):
     # Sin ella, cada login dispara una generación de LLM y Ollama las serializa.
     analisis_cache_ttl_s: int = 900
 
+    # ── F3 · Ingesta de archivos .xlsm ──────────────────────────────────────
+    # Dónde aterrizan los archivos subidos. Se conservan tras ingerir: son la
+    # única evidencia de qué se cargó si hay que auditar un reporte. Ruta
+    # relativa al backend por defecto, y FUERA del repo (.gitignore).
+    ingesta_upload_dir: str = "./data/uploads"
+    # Tope de tamaño. Los .xlsm NEW reales rondan los 125 MB; 200 deja margen
+    # sin permitir que una subida accidental de varios GB tumbe el proceso.
+    # El origen NO validaba tamaño (G11): cualquier archivo llegaba al ETL.
+    ingesta_max_upload_mb: int = 200
+    # Latido del progreso en vivo. Una hoja pesada (BDP_datos_mes, ~315.000
+    # filas) puede tardar minutos SIN emitir nada, y cualquier proxy con
+    # `proxy_read_timeout` cortaría la conexión a mitad de la ingesta (G3).
+    ingesta_sse_heartbeat_s: int = 15
+
     # ── Seguridad — cookie firmada (itsdangerous) ───────────────────────────
     secret_key: str
 
