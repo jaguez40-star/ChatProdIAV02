@@ -120,12 +120,18 @@ export function useLibreta(filtro: FiltroLibreta) {
 
   const descartarAviso = useCallback(() => setAviso(null), []);
 
+  /** Vuelve a leer la libreta sin ejecutar el Control 2 (H5). */
+  const recargar = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: [CLAVE] });
+  }, [qc]);
+
   return {
+    /** Se expone el objeto entero para poder pasárselo a `QueryState` (C5). */
+    consulta,
     libreta: consulta.data,
-    cargando: consulta.isPending,
-    error: consulta.error,
     aviso,
     descartarAviso,
+    recargar,
     calificar: calificar.mutate,
     calificando: calificar.isPending,
     escanear: escanear.mutate,

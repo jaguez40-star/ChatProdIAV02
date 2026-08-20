@@ -1,0 +1,60 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $pv-space-3;
+  margin: 0;
+}
+
+.kpi {
+  flex: 1 1 160px;
+  padding: $pv-space-3;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+  background: $pv-white;
+
+  dt {
+    margin: 0;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $pv-muted;
+  }
+
+  dd {
+    margin: $pv-space-1 0 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: $pv-navy;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// El KPI del ciclo (regla A4) no es un dato más: decide si hay que engordar
+// patrones. Se distingue del resto con el color de marca.
+.destacado {
+  border-color: $pv-primary;
+  background: $pv-lime-soft;
+
+  dd {
+    color: $pv-primary;
+  }
+}
+
+// Y si cae por debajo del umbral, deja de ser informativo y pasa a ser aviso.
+.alerta {
+  border-color: $pv-neg;
+  background: #fdeeee;
+
+  dd {
+    color: $pv-neg;
+  }
+}
+
+.nota {
+  margin: $pv-space-2 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: $pv-navy;
+}

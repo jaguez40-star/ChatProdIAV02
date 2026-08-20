@@ -1,0 +1,163 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-3;
+  min-height: 0;
+}
+
+.historial {
+  flex: 1;
+  min-height: 160px;
+  max-height: 420px;
+  margin: 0;
+  padding: $pv-space-3;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+  background: $pv-white;
+}
+
+.vacio {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: $pv-muted;
+}
+
+.item {
+  padding: $pv-space-2 0;
+  border-bottom: 1px solid $pv-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.pregunta {
+  margin: 0;
+  font-size: 0.88rem;
+  color: $pv-navy;
+}
+
+.resultado {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $pv-space-2;
+  margin: $pv-space-2 0 0;
+}
+
+.grupo {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: $pv-lime-soft;
+  color: $pv-primary;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.capa,
+.entidad {
+  font-family: $pv-font-mono;
+  font-size: 0.72rem;
+  color: $pv-muted;
+}
+
+.progreso {
+  margin: 0;
+  font-size: 0.8rem;
+  color: $pv-muted;
+}
+
+.error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: $pv-neg;
+}
+
+.entrada {
+  display: flex;
+  gap: $pv-space-2;
+
+  input {
+    flex: 1;
+    padding: $pv-space-2 $pv-space-3;
+    border: 1px solid $pv-border;
+    border-radius: $pv-radius-sm;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: $pv-navy;
+
+    &:disabled {
+      background: $pv-bg;
+    }
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 $pv-space-4;
+    border: none;
+    border-radius: $pv-radius-sm;
+    background: $pv-primary;
+    color: $pv-white;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.lote {
+  font-size: 0.85rem;
+
+  summary {
+    display: flex;
+    align-items: center;
+    gap: $pv-space-2;
+    cursor: pointer;
+    font-weight: 600;
+    color: $pv-primary;
+  }
+
+  textarea {
+    width: 100%;
+    margin-top: $pv-space-2;
+    padding: $pv-space-2;
+    border: 1px solid $pv-border;
+    border-radius: $pv-radius-sm;
+    font-family: inherit;
+    font-size: 0.85rem;
+    resize: vertical;
+  }
+}
+
+.barraLote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $pv-space-3;
+  margin-top: $pv-space-2;
+  font-size: 0.8rem;
+  color: $pv-muted;
+
+  button {
+    padding: $pv-space-2 $pv-space-3;
+    border: none;
+    border-radius: $pv-radius-sm;
+    background: $pv-primary;
+    color: $pv-white;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+}

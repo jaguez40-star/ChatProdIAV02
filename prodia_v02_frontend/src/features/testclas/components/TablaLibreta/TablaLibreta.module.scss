@@ -1,0 +1,193 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.contenedor {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-3;
+  min-height: 0;
+}
+
+.acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $pv-space-3;
+}
+
+.boton,
+.botonPrincipal {
+  display: inline-flex;
+  align-items: center;
+  gap: $pv-space-2;
+  padding: $pv-space-2 $pv-space-3;
+  border-radius: $pv-radius-sm;
+  border: 1px solid $pv-border;
+  background: $pv-white;
+  color: $pv-navy;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.botonPrincipal {
+  border-color: $pv-primary;
+  background: $pv-primary;
+  color: $pv-white;
+}
+
+.ayudaTeclado {
+  font-size: 0.78rem;
+  color: $pv-muted;
+
+  b {
+    color: $pv-navy;
+    font-family: $pv-font-mono;
+  }
+}
+
+.scroll {
+  overflow: auto;
+  border: 1px solid $pv-border;
+  border-radius: $pv-radius-md;
+  background: $pv-white;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: $pv-space-2 $pv-space-3;
+    text-align: left;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $pv-muted;
+    background: $pv-bg;
+    border-bottom: 1px solid $pv-border;
+  }
+
+  td {
+    padding: $pv-space-2 $pv-space-3;
+    border-bottom: 1px solid $pv-border;
+    vertical-align: top;
+  }
+}
+
+.filaPendiente {
+  background: $pv-white;
+}
+
+// El cursor del teclado tiene que verse SIN color como único indicio: quien
+// navega con «↑↓» necesita saber dónde está de un vistazo.
+.filaCursor {
+  outline: 2px solid $pv-primary;
+  outline-offset: -2px;
+  background: $pv-lime-soft;
+}
+
+.pregunta {
+  max-width: 34ch;
+  color: $pv-navy;
+}
+
+.grupo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: $pv-lime-soft;
+  color: $pv-primary;
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.capa,
+.diag {
+  display: inline-block;
+  margin-left: $pv-space-2;
+  font-family: $pv-font-mono;
+  font-size: 0.72rem;
+  color: $pv-muted;
+}
+
+.fecha {
+  font-family: $pv-font-mono;
+  font-size: 0.75rem;
+  color: $pv-muted;
+  white-space: nowrap;
+}
+
+.calificar {
+  display: flex;
+  flex-direction: column;
+  gap: $pv-space-2;
+}
+
+.pendiente,
+.sospecha {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: $pv-muted;
+}
+
+// La sospecha se distingue, pero NO se pinta como resuelta: sigue sin juzgar.
+.sospecha {
+  color: $pv-neg;
+  font-weight: 600;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip,
+.chipOk {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid $pv-border;
+  background: $pv-white;
+  color: $pv-navy;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.chipOk {
+  border-color: $pv-pos;
+  color: $pv-pos;
+  font-weight: 600;
+}
+
+.ok,
+.no {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.ok {
+  color: $pv-pos;
+}
+
+.no {
+  color: $pv-neg;
+}

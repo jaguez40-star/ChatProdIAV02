@@ -1,0 +1,1 @@
+﻿export { RutaAdmin } from './RutaAdmin';

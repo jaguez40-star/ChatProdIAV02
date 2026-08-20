@@ -1,0 +1,1 @@
+﻿export { ChatPrueba } from './ChatPrueba';

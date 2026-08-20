@@ -1,4 +1,4 @@
-import { HelpCircle, LogOut, Settings, ShieldCheck } from 'lucide-react';
+import { FlaskConical, HelpCircle, LogOut, Settings, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import styles from './MenuUsuario.module.scss';
@@ -13,6 +13,10 @@ interface MenuUsuarioProps {
 }
 
 const ACCESOS = [
+  // Test Clas es una herramienta de administración, no una sección del
+  // producto: por eso vive aquí y no en el <nav> del header (que no sabe de
+  // permisos y dejaría a un no-admin viendo un enlace que le da 403).
+  { icono: FlaskConical, etiqueta: 'Test Clas', ruta: '/test-clas', color: '#004236', soloAdmin: true },
   { icono: ShieldCheck, etiqueta: 'Admin', ruta: '/admin', color: '#004236', soloAdmin: true },
   { icono: Settings, etiqueta: 'Configuración', ruta: '/settings', color: '#6b7280', soloAdmin: false },
   { icono: HelpCircle, etiqueta: 'Ayuda', ruta: '/help', color: '#7c3aed', soloAdmin: false },
