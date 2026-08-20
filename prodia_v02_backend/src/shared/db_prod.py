@@ -4,11 +4,16 @@ sobrevive a cortes de VPN (reintenta la conexión en vez de fallar con una
 conexión zombie del pool). Nunca se mezcla con `db_auth` (L4 — dos engines
 separados, regla declarada en el propio código de la plantilla).
 
-Clasificación H4/P-6: OPCIONAL en F0. Postgres puede estar apagado y el
-backend arranca igual (verificado apagado durante esta ejecución) —
-`main.py` reporta `degraded` en /health, nunca `raise`.
-TODO[F1]: cuando la feature `tablas` dependa de esto, reclasificar a crítica
-en el lifespan de `main.py` (este módulo no decide criticidad, solo expone).
+Clasificación H4/P-6 → H9 (F1): la feature `tablas` depende de este engine, pero
+`main.py` sigue SIN abortar el arranque si Postgres está caído. El fallo se
+degrada donde importa: `/api/v1/tablas/*` devuelve 503 y /health reporta
+`degraded`; login y el resto de la app (que solo usan `db_auth`) no se ven
+afectados. Hacer fail-fast aquí tumbaría toda la aplicación por una feature.
+
+Nota para tests: `get_prod_db` es la dependencia que se sustituye con
+`app.dependency_overrides[get_prod_db]` (ver `tests/conftest.py::patch_prod_db`).
+El engine está cacheado con `@lru_cache`, así que NO basta con parchear settings:
+hay que override-ar la dependencia o limpiar la caché.
 """
 
 from __future__ import annotations

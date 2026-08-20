@@ -152,3 +152,45 @@ async def integration_client(patch_db_for_integration: Any) -> Any:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         yield client
+
+
+# ── db_prod (PostgreSQL) en tests — hallazgo H1/H2 del plan F1 ──────────────
+
+
+@pytest.fixture
+def patch_prod_db() -> Any:
+    """Sustituye la sesión de `db_prod` por un doble, sin tocar PostgreSQL.
+
+    Devuelve una factoría: `patch_prod_db(datos=..., fallar=...)` registra el override
+    y entrega la `SesionProdFalsa` usada, para poder inspeccionar el SQL emitido.
+
+    A diferencia de `patch_db_for_integration` (que hace monkeypatch de `SessionLocal`),
+    aquí se usa `app.dependency_overrides` — el patrón de FastAPI — porque `db_prod` NO
+    expone un `SessionLocal` de módulo: construye el engine con `get_prod_engine()`
+    cacheado por `@lru_cache`, así que parchear settings no bastaría (la caché ya tendría
+    el engine viejo). Es el único mecanismo que corta la conexión real de raíz.
+
+    Sin esto, cualquier test de `tablas` intentaría alcanzar el servidor 10.100.26.139 y
+    fallaría en CI, que no levanta Postgres ni define `PROD_DATABASE_URL`.
+    """
+    from src.main import app
+    from src.shared.db_prod import get_prod_db
+    from tests.fakes.prod_db_falsa import SesionProdFalsa
+
+    creadas: list[SesionProdFalsa] = []
+
+    def _registrar(
+        datos: dict[str, Any] | None = None, fallar: bool = False
+    ) -> SesionProdFalsa:
+        sesion = SesionProdFalsa(datos=datos, fallar=fallar)
+        creadas.append(sesion)
+
+        def _override() -> Any:
+            yield sesion
+
+        app.dependency_overrides[get_prod_db] = _override
+        return sesion
+
+    yield _registrar
+
+    app.dependency_overrides.pop(get_prod_db, None)
