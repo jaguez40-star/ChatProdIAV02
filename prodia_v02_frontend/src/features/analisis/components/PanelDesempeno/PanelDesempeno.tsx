@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Grafico } from '../../../../shared/components/Grafico';
 import type { DatosGrafico } from '../../../../shared/components/Grafico';
 import { QueryState } from '../../../../shared/components/QueryState';
-import { formatBl, formatMscf, formatPct } from '../../../../shared/utils/format';
+import { formatBbl, formatMscf, formatPct } from '../../../../shared/utils/format';
 import { useDesempeno } from '../../hooks/useAnalisis';
 import type { Ambito, Desempeno } from '../../types/analisisTypes';
 import styles from './PanelDesempeno.module.scss';
@@ -25,7 +25,7 @@ const COLOR_PRODUCTO: Record<string, string> = {
  * visible.
  */
 function formatearVolumen(producto: string, valor: number): string {
-  return producto === 'GAS' ? formatMscf(valor) : formatBl(valor);
+  return producto === 'GAS' ? formatMscf(valor) : formatBbl(valor);
 }
 
 export function PanelDesempeno({ ambito }: PanelDesempenoProps) {

@@ -1,6 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatBl, formatDelta, formatKUSD, formatMscf, formatPct, formatRelativeES } from './format';
+import {
+  formatBbl,
+  formatBl,
+  formatDelta,
+  formatKUSD,
+  formatMscf,
+  formatPct,
+  formatRelativeES,
+  formatRitmoDiario,
+} from './format';
+
+describe('formatBbl', () => {
+  it('rotula el volumen de líquido — un número desnudo no dice su escala', () => {
+    expect(formatBbl(88857284)).toBe('88.857.284 bbl');
+  });
+});
+
+describe('formatRitmoDiario', () => {
+  it('usa BOPD para líquido y MSCFD para gas: es una tasa, no un volumen', () => {
+    expect(formatRitmoDiario('CRUDO', 5228)).toBe('5.228 BOPD');
+    expect(formatRitmoDiario('GAS', 4250)).toBe('4.250 MSCFD');
+  });
+});
 
 describe('formatBl', () => {
   it('formatea con separador de miles es-CO, sin decimales por defecto', () => {

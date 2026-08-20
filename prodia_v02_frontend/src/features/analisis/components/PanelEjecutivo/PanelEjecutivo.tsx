@@ -1,5 +1,5 @@
 import { QueryState } from '../../../../shared/components/QueryState';
-import { formatBl, formatMscf, formatPct } from '../../../../shared/utils/format';
+import { formatBl, formatPct, formatRitmoDiario } from '../../../../shared/utils/format';
 import { useEjecutivo } from '../../hooks/useAnalisis';
 import type { Ambito, Ejecutivo, Foco, TarjetaKpi } from '../../types/analisisTypes';
 import { AcordeonFoco } from '../AcordeonFoco';
@@ -9,8 +9,16 @@ interface PanelEjecutivoProps {
   ambito: Ambito;
 }
 
+/**
+ * SIN unidad a propósito: la tarjeta pinta `tarjeta.unidad` (la manda el
+ * backend, `services_ejecutivo.py:139`) justo después, como "… bbl/mes". Con
+ * `formatMscf` el gas salía duplicado: "72.259.391,14 MSCF MSCF/mes".
+ *
+ * El gas conserva sus 2 decimales porque ya viene ÷1e6 del backend (A5): sin
+ * ellos, un valor menor que 0,005 se redondearía a "0".
+ */
 function formatearVolumen(producto: string, valor: number): string {
-  return producto === 'GAS' ? formatMscf(valor) : formatBl(valor);
+  return formatBl(valor, { maximumFractionDigits: producto === 'GAS' ? 2 : 0 });
 }
 
 export function PanelEjecutivo({ ambito }: PanelEjecutivoProps) {
@@ -113,8 +121,8 @@ function TarjetaCierre({ tarjeta }: { tarjeta: TarjetaKpi }) {
       {/* Solo se muestra si la curva diaria reconcilia con el mensual. */}
       {tarjeta.bopd && (
         <p className={styles.tarjetaRitmo}>
-          Ritmo {formatBl(tarjeta.bopd.real)} · requerido{' '}
-          {formatBl(tarjeta.bopd.requerido)}
+          Ritmo {formatRitmoDiario(tarjeta.producto, tarjeta.bopd.real)} · requerido{' '}
+          {formatRitmoDiario(tarjeta.producto, tarjeta.bopd.requerido)}
           {tarjeta.bopd.deltaPct !== null && (
             <span className={styles.nota}> ({formatPct(tarjeta.bopd.deltaPct)})</span>
           )}

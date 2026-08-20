@@ -73,6 +73,22 @@ describe('PanelDesempeno', () => {
     expect(screen.getByText(/83,3%/)).toBeDefined();
   });
 
+  it('rotula cada producto con SU unidad (A5)', async () => {
+    mocks.getDesempeno.mockResolvedValue({
+      ...BASE,
+      porProducto: [
+        { producto: 'CRUDO', real: 88857284, ppto: 93790748, cumplimiento: 94.7 },
+        { producto: 'GAS', real: 72259391.14, ppto: 83072748.73, cumplimiento: 87 },
+      ],
+    });
+    render(envolver(<PanelDesempeno ambito={{ entidad: 'CASTILLA' }} />));
+
+    // Un volumen desnudo no dice en qué escala está: es el defecto que el
+    // sistema viejo documenta en multitab_shell.js:2009.
+    expect(await screen.findByText('88.857.284 bbl')).toBeDefined();
+    expect(screen.getByText('72.259.391,14 MSCF')).toBeDefined();
+  });
+
   it('renderiza la curva diaria y el ritmo mensual', async () => {
     render(envolver(<PanelDesempeno ambito={{ entidad: 'CASTILLA' }} />));
 

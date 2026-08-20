@@ -14,10 +14,36 @@
 
 const LOCALE = 'es-CO';
 
+/**
+ * Separador de miles SIN unidad. Para cantidades que no son volumen: días con
+ * dato, huecos, número de reportes, cardinalidad de entidades. Para volumen de
+ * líquido usa `formatBbl`, que sí rotula.
+ */
 export function formatBl(value: number, opts: { maximumFractionDigits?: number } = {}): string {
   return value.toLocaleString(LOCALE, {
     maximumFractionDigits: opts.maximumFractionDigits ?? 0,
   });
+}
+
+/**
+ * Crudo y blancos en bbl. La unidad la fija el producto y va SIEMPRE escrita:
+ * el sistema viejo rotula los tres (`{CRUDO:"bbl", GAS:"MSCF", BLANCOS:"bbl"}`,
+ * `multitab_shell.js:2004`) porque un volumen desnudo no dice en qué escala
+ * está — el mismo defecto que documenta su línea 2009, donde un valor de gas
+ * «se leía como "0,26 bbl"».
+ */
+export function formatBbl(value: number, opts: { maximumFractionDigits?: number } = {}): string {
+  return `${value.toLocaleString(LOCALE, { maximumFractionDigits: opts.maximumFractionDigits ?? 0 })} bbl`;
+}
+
+/**
+ * Ritmo diario — TASA, no volumen: BOPD para líquido, MSCFD para gas
+ * (`multitab_shell.js:2486`). Rotularlo "bbl" mezclaría un caudal con un
+ * acumulado, que es la confusión de escala que A5 obliga a evitar.
+ */
+export function formatRitmoDiario(producto: string, value: number): string {
+  const n = value.toLocaleString(LOCALE, { maximumFractionDigits: 0 });
+  return `${n} ${producto === 'GAS' ? 'MSCFD' : 'BOPD'}`;
 }
 
 /** Gas en MSCF — el valor de entrada viene en la escala del fact (÷1e6 ya

@@ -179,7 +179,28 @@ describe('AcordeonFoco', () => {
 
     await abrir(focoOk);
 
-    expect(screen.getByText('Real')).toBeDefined();
+    // La cabecera lleva la unidad del producto del foco: una columna "Real"
+    // desnuda no dice si son barriles o pies cúbicos.
+    expect(screen.getByText('Real (bbl)')).toBeDefined();
     expect(screen.getByText('900')).toBeDefined();
+  });
+
+  it('un foco de gas rotula sus extremos en MSCF, no en bbl', async () => {
+    const focoGas: Foco = {
+      ...FOCO_GAP,
+      producto: 'GAS',
+      esOk: true,
+      estadoLabel: 'Alineado',
+      titulo: '',
+      causa: { texto: '', cobertura: 'ok', detalle: [], eventos: [] },
+      accion: '',
+      tipo: 'ok',
+      extremos: [{ campo: 'CUSIANA', real: 900, meta: 800 }],
+    };
+
+    await abrir(focoGas);
+
+    expect(screen.getByText('Real (MSCF)')).toBeDefined();
+    expect(screen.queryByText('Real (bbl)')).toBeNull();
   });
 });

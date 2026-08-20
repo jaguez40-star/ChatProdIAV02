@@ -122,14 +122,18 @@ export function AcordeonFoco({ foco, ambito }: AcordeonFocoProps) {
 }
 
 function PillComportamiento({ foco }: { foco: Foco }) {
+  const unidad = foco.producto === 'GAS' ? 'MSCF' : 'bbl';
+
   if (foco.extremos && foco.extremos.length > 0) {
     return (
       <table className={styles.tabla}>
         <thead>
           <tr>
             <th>Campo</th>
-            <th>Real</th>
-            <th>Meta</th>
+            {/* La unidad va en la cabecera, no repetida en cada celda: los
+                valores son todos del mismo producto. */}
+            <th>Real ({unidad})</th>
+            <th>Meta ({unidad})</th>
           </tr>
         </thead>
         <tbody>
