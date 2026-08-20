@@ -45,9 +45,41 @@ def get_prod_session_factory() -> Any:
 
 
 def get_prod_db() -> Generator[Session, None, None]:
+    """Sesión de SOLO LECTURA — la que usan `tablas` (F1) y `analisis` (F2).
+
+    No abre transacción ni hace commit: para leer no hace falta, y así una consulta
+    lenta no mantiene una transacción abierta reteniendo recursos.
+    """
     db: Session = get_prod_session_factory()()
     try:
         yield db
+    finally:
+        db.close()
+
+
+def get_prod_tx() -> Generator[Session, None, None]:
+    """Sesión TRANSACCIONAL — para el ETL de Ingesta (F3), que escribe.
+
+    Confirma al terminar bien y revierte ante cualquier excepción. Existe aparte de
+    `get_prod_db` a propósito: aquella no hace commit ni rollback (no le hace falta), y
+    cambiarla para que los hiciera afectaría a dos features que solo leen.
+
+    **Es lo que hace atómica la ingesta.** Un `.xlsm` produce escrituras en 18 tablas; si
+    falla la hoja 30 de 37, revertir entero deja la base como estaba, en vez de con un
+    reporte a medio cargar que nadie sabría distinguir de uno completo.
+
+    Como contrapartida, la transacción vive lo que dure la ingesta —minutos— y retiene
+    los locks de las tablas que toca. Por eso el ETL toma además un `pg_advisory_xact_lock`
+    por fecha de reporte: dos ingestas de la misma fecha se serializan de forma explícita
+    en lugar de bloquearse a ciegas dentro de PostgreSQL.
+    """
+    db: Session = get_prod_session_factory()()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 

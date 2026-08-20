@@ -79,6 +79,11 @@ class _Resultado:
     def mappings(self) -> _Resultado:
         return self
 
+    def __iter__(self) -> Any:
+        """SQLAlchemy permite recorrer el resultado sin llamar a `.all()`, y el ETL lo
+        hace al precargar las dimensiones."""
+        return iter(self._filas)
+
     def all(self) -> list[Any]:
         return self._filas
 
